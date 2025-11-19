@@ -1,0 +1,54 @@
+# GraphQL schema for MPC HSM with TSS
+
+# TSS Keygen Types
+type PartyShare {
+  partyId: String!
+  shareId: String!
+  shareValue: String!
+}
+
+type KeygenResult {
+  publicKey: String!
+  privateKey: String!
+  address: String!
+  partyIds: [String!]!
+  shares: [PartyShare!]!
+  threshold: Int!
+  totalShares: Int!
+  success: Boolean!
+  message: String!
+}
+
+input KeygenInput {
+  threshold: Int!
+  totalParties: Int!
+}
+
+# Original Todo types (keeping for compatibility)
+type Todo {
+  id: ID!
+  text: String!
+  done: Boolean!
+  user: User!
+}
+
+type User {
+  id: ID!
+  name: String!
+}
+
+type Query {
+  todos: [Todo!]!
+}
+
+input NewTodo {
+  text: String!
+  userId: String!
+}
+
+type Mutation {
+  createTodo(input: NewTodo!): Todo!
+
+  # TSS Operations
+  generateDistributedKey(input: KeygenInput!): KeygenResult!
+}
