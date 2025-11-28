@@ -1,0 +1,228 @@
+syntax = "proto3";
+
+package mpcnode;
+
+option go_package = "github.com/mpc_hsm/node/proto";
+
+// MPC Node Service - основной сервис для MPC операций
+service MPCNodeService {
+  // Проверка состояния ноды
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+
+  // Получение информации о ноде
+  rpc GetNodeInfo(GetNodeInfoRequest) returns (GetNodeInfoResponse);
+
+  // ============================================
+  // Операции генерации ключей (Keygen)
+  // ============================================
+
+  // Инициализация сессии генерации ключей
+  rpc InitKeygen(InitKeygenRequest) returns (InitKeygenResponse);
+
+  // Обработка сообщения раунда keygen
+  rpc ProcessKeygenMessage(KeygenMessage) returns (KeygenMessageResponse);
+
+  // Получение результата генерации ключей
+  rpc GetKeygenResult(GetKeygenResultRequest) returns (GetKeygenResultResponse);
+
+  // ============================================
+  // Операции подписания (Signing)
+  // ============================================
+
+  // Инициализация сессии подписания
+  rpc InitSigning(InitSigningRequest) returns (InitSigningResponse);
+
+  // Обработка сообщения раунда подписания
+  rpc ProcessSigningMessage(SigningMessage) returns (SigningMessageResponse);
+
+  // Получение результата подписания
+  rpc GetSigningResult(GetSigningResultRequest) returns (GetSigningResultResponse);
+
+  // ============================================
+  // Потоковое взаимодействие
+  // ============================================
+
+  // Двунаправленный поток для обмена MPC сообщениями
+  rpc MPCMessageStream(stream MPCStreamMessage) returns (stream MPCStreamMessage);
+}
+
+// ============================================
+// Базовые типы
+// ============================================
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  bool healthy = 1;
+  string status = 2;
+  string version = 3;
+}
+
+message GetNodeInfoRequest {}
+
+message GetNodeInfoResponse {
+  string node_id = 1;
+  string party_id = 2;
+  string public_key = 3;
+  string address = 4;
+  NodeStatus status = 5;
+  repeated string supported_curves = 6;
+}
+
+enum NodeStatus {
+  NODE_STATUS_UNSPECIFIED = 0;
+  NODE_STATUS_ONLINE = 1;
+  NODE_STATUS_OFFLINE = 2;
+  NODE_STATUS_BUSY = 3;
+  NODE_STATUS_ERROR = 4;
+}
+
+// ============================================
+// Keygen сообщения
+// ============================================
+
+message InitKeygenRequest {
+  string session_id = 1;
+  repeated PartyInfo parties = 2;
+  int32 threshold = 3;
+  string curve = 4; // secp256k1, ed25519, etc.
+}
+
+message PartyInfo {
+  string party_id = 1;
+  int32 party_index = 2;
+  string address = 3;
+}
+
+message InitKeygenResponse {
+  bool success = 1;
+  string error_message = 2;
+  string session_id = 3;
+}
+
+message KeygenMessage {
+  string session_id = 1;
+  string from_party = 2;
+  repeated string to_parties = 3; // пусто = broadcast
+  int32 round = 4;
+  bytes payload = 5;
+  bool is_broadcast = 6;
+}
+
+message KeygenMessageResponse {
+  bool success = 1;
+  string error_message = 2;
+  repeated KeygenMessage outgoing_messages = 3; // исходящие сообщения для других участников
+}
+
+message GetKeygenResultRequest {
+  string session_id = 1;
+}
+
+message GetKeygenResultResponse {
+  bool completed = 1;
+  bool success = 2;
+  string error_message = 3;
+  KeygenResult result = 4;
+  repeated KeygenMessage outgoing_messages = 5; // исходящие сообщения для маршрутизации
+}
+
+message KeygenResult {
+  string public_key = 1;
+  string address = 2; // Ethereum/Bitcoin адрес
+  string public_share = 3; // публичная часть доли ключа
+  int32 party_index = 4;
+  int32 threshold = 5;
+  int32 total_parties = 6;
+}
+
+// ============================================
+// Signing сообщения
+// ============================================
+
+message InitSigningRequest {
+  string session_id = 1;
+  string key_id = 2; // ID ключа для подписания
+  bytes message_to_sign = 3;
+  repeated PartyInfo parties = 4;
+}
+
+message InitSigningResponse {
+  bool success = 1;
+  string error_message = 2;
+  string session_id = 3;
+}
+
+message SigningMessage {
+  string session_id = 1;
+  string from_party = 2;
+  repeated string to_parties = 3;
+  int32 round = 4;
+  bytes payload = 5;
+  bool is_broadcast = 6;
+}
+
+message SigningMessageResponse {
+  bool success = 1;
+  string error_message = 2;
+  repeated SigningMessage outgoing_messages = 3;
+}
+
+message GetSigningResultRequest {
+  string session_id = 1;
+}
+
+message GetSigningResultResponse {
+  bool completed = 1;
+  bool success = 2;
+  string error_message = 3;
+  SigningResult result = 4;
+}
+
+message SigningResult {
+  string signature = 1; // полная подпись в hex
+  string r = 2;
+  string s = 3;
+  int32 v = 4; // recovery id
+}
+
+// ============================================
+// Потоковые сообщения
+// ============================================
+
+message MPCStreamMessage {
+  string session_id = 1;
+  string from_party = 2;
+  repeated string to_parties = 3;
+
+  oneof message_type {
+    KeygenStreamPayload keygen = 4;
+    SigningStreamPayload signing = 5;
+    ControlMessage control = 6;
+  }
+}
+
+message KeygenStreamPayload {
+  int32 round = 1;
+  bytes data = 2;
+  bool is_broadcast = 3;
+}
+
+message SigningStreamPayload {
+  int32 round = 1;
+  bytes data = 2;
+  bool is_broadcast = 3;
+}
+
+message ControlMessage {
+  ControlType type = 1;
+  string payload = 2;
+}
+
+enum ControlType {
+  CONTROL_TYPE_UNSPECIFIED = 0;
+  CONTROL_TYPE_SESSION_START = 1;
+  CONTROL_TYPE_SESSION_END = 2;
+  CONTROL_TYPE_ERROR = 3;
+  CONTROL_TYPE_HEARTBEAT = 4;
+}

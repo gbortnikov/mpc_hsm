@@ -1,0 +1,212 @@
+# GraphQL схема для MPC Оркестратора
+# Управляет MPC нодами и координирует TSS операции
+
+# ============================================
+# Управление нодами
+# ============================================
+
+enum NodeStatus {
+  ONLINE
+  OFFLINE
+  BUSY
+  ERROR
+}
+
+type Node {
+  id: ID!
+  partyId: String!
+  address: String!
+  publicKey: String!
+  status: NodeStatus!
+  lastSeen: String!
+}
+
+input RegisterNodeInput {
+  partyId: String!
+  address: String!
+  publicKey: String!
+}
+
+# ============================================
+# Управление сессиями
+# ============================================
+
+enum SessionStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+enum SessionType {
+  KEYGEN
+  SIGNING
+  RESHARING
+}
+
+type Session {
+  id: ID!
+  type: SessionType!
+  status: SessionStatus!
+  participants: [String!]!
+  threshold: Int!
+  createdAt: String!
+  completedAt: String
+  result: SessionResult
+}
+
+type SessionResult {
+  success: Boolean!
+  message: String!
+  data: String
+}
+
+input CreateSessionInput {
+  type: SessionType!
+  participants: [String!]!
+  threshold: Int!
+}
+
+# ============================================
+# Маршрутизация сообщений
+# ============================================
+
+type MPCMessage {
+  id: ID!
+  sessionId: String!
+  fromParty: String!
+  toParties: [String!]!
+  isBroadcast: Boolean!
+  round: Int!
+  payload: String!
+  timestamp: String!
+}
+
+input SendMessageInput {
+  sessionId: String!
+  toParties: [String!]
+  payload: String!
+}
+
+# ============================================
+# Результаты генерации ключей
+# ============================================
+
+type KeyShare {
+  partyId: String!
+  publicShare: String!
+}
+
+type KeygenResult {
+  sessionId: String!
+  publicKey: String!
+  address: String!
+  shares: [KeyShare!]!
+  threshold: Int!
+  totalParties: Int!
+}
+
+# ============================================
+# Подписание
+# ============================================
+
+input SigningInput {
+  keyId: String!
+  message: String!
+  participants: [String!]!
+}
+
+type SigningResult {
+  sessionId: String!
+  signature: String!
+  r: String!
+  s: String!
+  v: Int!
+}
+
+# ============================================
+# Health Check
+# ============================================
+
+type HealthCheck {
+  status: String!
+  timestamp: String!
+  version: String!
+  uptime: Int!
+  nodes: NodeHealth!
+  sessions: SessionHealth!
+}
+
+type NodeHealth {
+  total: Int!
+  online: Int!
+  offline: Int!
+}
+
+type SessionHealth {
+  active: Int!
+  pending: Int!
+  completed: Int!
+  failed: Int!
+}
+
+# ============================================
+# Запросы
+# ============================================
+
+type Query {
+  # Health check
+  healthCheck: HealthCheck!
+
+  # Запросы нод
+  nodes: [Node!]!
+  node(id: ID!): Node
+  onlineNodes: [Node!]!
+
+  # Запросы сессий
+  sessions: [Session!]!
+  session(id: ID!): Session
+  activeSessions: [Session!]!
+
+  # Запросы сообщений
+  pendingMessages(partyId: String!): [MPCMessage!]!
+}
+
+# ============================================
+# Мутации
+# ============================================
+
+type Mutation {
+  # Управление нодами
+  registerNode(input: RegisterNodeInput!): Node!
+  unregisterNode(id: ID!): Boolean!
+  updateNodeStatus(id: ID!, status: NodeStatus!): Node!
+
+  # Управление сессиями
+  createSession(input: CreateSessionInput!): Session!
+  joinSession(sessionId: ID!, partyId: String!): Session!
+  cancelSession(id: ID!): Boolean!
+
+  # MPC операции
+  startKeygen(sessionId: ID!): Session!
+  startSigning(input: SigningInput!): Session!
+
+  # Маршрутизация сообщений
+  sendMessage(input: SendMessageInput!): MPCMessage!
+  acknowledgeMessage(messageId: ID!, partyId: String!): Boolean!
+}
+
+# ============================================
+# Подписки (для обновлений в реальном времени)
+# ============================================
+
+type Subscription {
+  # Обновления статуса нод
+  nodeStatusChanged: Node!
+
+  # Обновления сессий
+  sessionUpdated(sessionId: ID!): Session!
+
+  # Поток сообщений для участника
+  messages(partyId: String!, sessionId: String!): MPCMessage!
+}
