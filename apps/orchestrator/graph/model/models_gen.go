@@ -15,38 +15,12 @@ type CreateSessionInput struct {
 	Threshold    int32       `json:"threshold"`
 }
 
-type HealthCheck struct {
-	Status    string         `json:"status"`
-	Timestamp string         `json:"timestamp"`
-	Version   string         `json:"version"`
-	Uptime    int32          `json:"uptime"`
-	Nodes     *NodeHealth    `json:"nodes"`
-	Sessions  *SessionHealth `json:"sessions"`
-}
-
-type KeyShare struct {
-	PartyID     string `json:"partyId"`
-	PublicShare string `json:"publicShare"`
-}
-
 type KeygenResult struct {
-	SessionID    string      `json:"sessionId"`
-	PublicKey    string      `json:"publicKey"`
-	Address      string      `json:"address"`
-	Shares       []*KeyShare `json:"shares"`
-	Threshold    int32       `json:"threshold"`
-	TotalParties int32       `json:"totalParties"`
-}
-
-type MPCMessage struct {
-	ID          string   `json:"id"`
-	SessionID   string   `json:"sessionId"`
-	FromParty   string   `json:"fromParty"`
-	ToParties   []string `json:"toParties"`
-	IsBroadcast bool     `json:"isBroadcast"`
-	Round       int32    `json:"round"`
-	Payload     string   `json:"payload"`
-	Timestamp   string   `json:"timestamp"`
+	SessionID    string `json:"sessionId"`
+	PublicKey    string `json:"publicKey"`
+	Address      string `json:"address"`
+	Threshold    int32  `json:"threshold"`
+	TotalParties int32  `json:"totalParties"`
 }
 
 type Mutation struct {
@@ -61,12 +35,6 @@ type Node struct {
 	LastSeen  string     `json:"lastSeen"`
 }
 
-type NodeHealth struct {
-	Total   int32 `json:"total"`
-	Online  int32 `json:"online"`
-	Offline int32 `json:"offline"`
-}
-
 type Query struct {
 }
 
@@ -76,51 +44,26 @@ type RegisterNodeInput struct {
 	PublicKey string `json:"publicKey"`
 }
 
-type SendMessageInput struct {
-	SessionID string   `json:"sessionId"`
-	ToParties []string `json:"toParties,omitempty"`
-	Payload   string   `json:"payload"`
-}
-
 type Session struct {
-	ID           string         `json:"id"`
-	Type         SessionType    `json:"type"`
-	Status       SessionStatus  `json:"status"`
-	Participants []string       `json:"participants"`
-	Threshold    int32          `json:"threshold"`
-	CreatedAt    string         `json:"createdAt"`
-	CompletedAt  *string        `json:"completedAt,omitempty"`
-	Result       *SessionResult `json:"result,omitempty"`
+	ID           string        `json:"id"`
+	Type         SessionType   `json:"type"`
+	Status       SessionStatus `json:"status"`
+	Participants []string      `json:"participants"`
+	Threshold    int32         `json:"threshold"`
+	CreatedAt    string        `json:"createdAt"`
+	CompletedAt  *string       `json:"completedAt,omitempty"`
 }
 
-type SessionHealth struct {
-	Active    int32 `json:"active"`
-	Pending   int32 `json:"pending"`
-	Completed int32 `json:"completed"`
-	Failed    int32 `json:"failed"`
-}
-
-type SessionResult struct {
-	Success bool    `json:"success"`
-	Message string  `json:"message"`
-	Data    *string `json:"data,omitempty"`
-}
-
-type SigningInput struct {
-	KeyID        string   `json:"keyId"`
-	Message      string   `json:"message"`
-	Participants []string `json:"participants"`
-}
-
-type SigningResult struct {
-	SessionID string `json:"sessionId"`
-	Signature string `json:"signature"`
-	R         string `json:"r"`
-	S         string `json:"s"`
-	V         int32  `json:"v"`
-}
-
-type Subscription struct {
+type StartKeygenInput struct {
+	// Список party ID участников генерации ключей.
+	// Если не указан - используются все зарегистрированные ноды.
+	Participants []string `json:"participants,omitempty"`
+	// Пороговое значение (минимальное количество участников для подписания).
+	// Должно быть <= количества участников.
+	Threshold int32 `json:"threshold"`
+	// Эллиптическая кривая для ключа: secp256k1, ed25519 и др.
+	// По умолчанию: secp256k1
+	Curve *string `json:"curve,omitempty"`
 }
 
 type NodeStatus string

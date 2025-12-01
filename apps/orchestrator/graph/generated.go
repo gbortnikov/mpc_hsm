@@ -41,58 +41,25 @@ type Config struct {
 type ResolverRoot interface {
 	Mutation() MutationResolver
 	Query() QueryResolver
-	Subscription() SubscriptionResolver
 }
 
 type DirectiveRoot struct {
 }
 
 type ComplexityRoot struct {
-	HealthCheck struct {
-		Nodes     func(childComplexity int) int
-		Sessions  func(childComplexity int) int
-		Status    func(childComplexity int) int
-		Timestamp func(childComplexity int) int
-		Uptime    func(childComplexity int) int
-		Version   func(childComplexity int) int
-	}
-
-	KeyShare struct {
-		PartyID     func(childComplexity int) int
-		PublicShare func(childComplexity int) int
-	}
-
 	KeygenResult struct {
 		Address      func(childComplexity int) int
 		PublicKey    func(childComplexity int) int
 		SessionID    func(childComplexity int) int
-		Shares       func(childComplexity int) int
 		Threshold    func(childComplexity int) int
 		TotalParties func(childComplexity int) int
 	}
 
-	MPCMessage struct {
-		FromParty   func(childComplexity int) int
-		ID          func(childComplexity int) int
-		IsBroadcast func(childComplexity int) int
-		Payload     func(childComplexity int) int
-		Round       func(childComplexity int) int
-		SessionID   func(childComplexity int) int
-		Timestamp   func(childComplexity int) int
-		ToParties   func(childComplexity int) int
-	}
-
 	Mutation struct {
-		AcknowledgeMessage func(childComplexity int, messageID string, partyID string) int
-		CancelSession      func(childComplexity int, id string) int
-		CreateSession      func(childComplexity int, input model.CreateSessionInput) int
-		JoinSession        func(childComplexity int, sessionID string, partyID string) int
-		RegisterNode       func(childComplexity int, input model.RegisterNodeInput) int
-		SendMessage        func(childComplexity int, input model.SendMessageInput) int
-		StartKeygen        func(childComplexity int, sessionID string) int
-		StartSigning       func(childComplexity int, input model.SigningInput) int
-		UnregisterNode     func(childComplexity int, id string) int
-		UpdateNodeStatus   func(childComplexity int, id string, status model.NodeStatus) int
+		CreateSession func(childComplexity int, input model.CreateSessionInput) int
+		DeleteNode    func(childComplexity int, id string) int
+		RegisterNode  func(childComplexity int, input model.RegisterNodeInput) int
+		StartKeygen   func(childComplexity int, input model.StartKeygenInput) int
 	}
 
 	Node struct {
@@ -104,21 +71,9 @@ type ComplexityRoot struct {
 		Status    func(childComplexity int) int
 	}
 
-	NodeHealth struct {
-		Offline func(childComplexity int) int
-		Online  func(childComplexity int) int
-		Total   func(childComplexity int) int
-	}
-
 	Query struct {
-		ActiveSessions  func(childComplexity int) int
-		HealthCheck     func(childComplexity int) int
-		Node            func(childComplexity int, id string) int
-		Nodes           func(childComplexity int) int
-		OnlineNodes     func(childComplexity int) int
-		PendingMessages func(childComplexity int, partyID string) int
-		Session         func(childComplexity int, id string) int
-		Sessions        func(childComplexity int) int
+		Node  func(childComplexity int, id string) int
+		Nodes func(childComplexity int) int
 	}
 
 	Session struct {
@@ -126,66 +81,21 @@ type ComplexityRoot struct {
 		CreatedAt    func(childComplexity int) int
 		ID           func(childComplexity int) int
 		Participants func(childComplexity int) int
-		Result       func(childComplexity int) int
 		Status       func(childComplexity int) int
 		Threshold    func(childComplexity int) int
 		Type         func(childComplexity int) int
-	}
-
-	SessionHealth struct {
-		Active    func(childComplexity int) int
-		Completed func(childComplexity int) int
-		Failed    func(childComplexity int) int
-		Pending   func(childComplexity int) int
-	}
-
-	SessionResult struct {
-		Data    func(childComplexity int) int
-		Message func(childComplexity int) int
-		Success func(childComplexity int) int
-	}
-
-	SigningResult struct {
-		R         func(childComplexity int) int
-		S         func(childComplexity int) int
-		SessionID func(childComplexity int) int
-		Signature func(childComplexity int) int
-		V         func(childComplexity int) int
-	}
-
-	Subscription struct {
-		Messages          func(childComplexity int, partyID string, sessionID string) int
-		NodeStatusChanged func(childComplexity int) int
-		SessionUpdated    func(childComplexity int, sessionID string) int
 	}
 }
 
 type MutationResolver interface {
 	RegisterNode(ctx context.Context, input model.RegisterNodeInput) (*model.Node, error)
-	UnregisterNode(ctx context.Context, id string) (bool, error)
-	UpdateNodeStatus(ctx context.Context, id string, status model.NodeStatus) (*model.Node, error)
+	DeleteNode(ctx context.Context, id string) (*model.Node, error)
 	CreateSession(ctx context.Context, input model.CreateSessionInput) (*model.Session, error)
-	JoinSession(ctx context.Context, sessionID string, partyID string) (*model.Session, error)
-	CancelSession(ctx context.Context, id string) (bool, error)
-	StartKeygen(ctx context.Context, sessionID string) (*model.Session, error)
-	StartSigning(ctx context.Context, input model.SigningInput) (*model.Session, error)
-	SendMessage(ctx context.Context, input model.SendMessageInput) (*model.MPCMessage, error)
-	AcknowledgeMessage(ctx context.Context, messageID string, partyID string) (bool, error)
+	StartKeygen(ctx context.Context, input model.StartKeygenInput) (*model.KeygenResult, error)
 }
 type QueryResolver interface {
-	HealthCheck(ctx context.Context) (*model.HealthCheck, error)
 	Nodes(ctx context.Context) ([]*model.Node, error)
 	Node(ctx context.Context, id string) (*model.Node, error)
-	OnlineNodes(ctx context.Context) ([]*model.Node, error)
-	Sessions(ctx context.Context) ([]*model.Session, error)
-	Session(ctx context.Context, id string) (*model.Session, error)
-	ActiveSessions(ctx context.Context) ([]*model.Session, error)
-	PendingMessages(ctx context.Context, partyID string) ([]*model.MPCMessage, error)
-}
-type SubscriptionResolver interface {
-	NodeStatusChanged(ctx context.Context) (<-chan *model.Node, error)
-	SessionUpdated(ctx context.Context, sessionID string) (<-chan *model.Session, error)
-	Messages(ctx context.Context, partyID string, sessionID string) (<-chan *model.MPCMessage, error)
 }
 
 type executableSchema struct {
@@ -207,56 +117,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 	_ = ec
 	switch typeName + "." + field {
 
-	case "HealthCheck.nodes":
-		if e.complexity.HealthCheck.Nodes == nil {
-			break
-		}
-
-		return e.complexity.HealthCheck.Nodes(childComplexity), true
-	case "HealthCheck.sessions":
-		if e.complexity.HealthCheck.Sessions == nil {
-			break
-		}
-
-		return e.complexity.HealthCheck.Sessions(childComplexity), true
-	case "HealthCheck.status":
-		if e.complexity.HealthCheck.Status == nil {
-			break
-		}
-
-		return e.complexity.HealthCheck.Status(childComplexity), true
-	case "HealthCheck.timestamp":
-		if e.complexity.HealthCheck.Timestamp == nil {
-			break
-		}
-
-		return e.complexity.HealthCheck.Timestamp(childComplexity), true
-	case "HealthCheck.uptime":
-		if e.complexity.HealthCheck.Uptime == nil {
-			break
-		}
-
-		return e.complexity.HealthCheck.Uptime(childComplexity), true
-	case "HealthCheck.version":
-		if e.complexity.HealthCheck.Version == nil {
-			break
-		}
-
-		return e.complexity.HealthCheck.Version(childComplexity), true
-
-	case "KeyShare.partyId":
-		if e.complexity.KeyShare.PartyID == nil {
-			break
-		}
-
-		return e.complexity.KeyShare.PartyID(childComplexity), true
-	case "KeyShare.publicShare":
-		if e.complexity.KeyShare.PublicShare == nil {
-			break
-		}
-
-		return e.complexity.KeyShare.PublicShare(childComplexity), true
-
 	case "KeygenResult.address":
 		if e.complexity.KeygenResult.Address == nil {
 			break
@@ -275,12 +135,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.KeygenResult.SessionID(childComplexity), true
-	case "KeygenResult.shares":
-		if e.complexity.KeygenResult.Shares == nil {
-			break
-		}
-
-		return e.complexity.KeygenResult.Shares(childComplexity), true
 	case "KeygenResult.threshold":
 		if e.complexity.KeygenResult.Threshold == nil {
 			break
@@ -294,77 +148,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.KeygenResult.TotalParties(childComplexity), true
 
-	case "MPCMessage.fromParty":
-		if e.complexity.MPCMessage.FromParty == nil {
-			break
-		}
-
-		return e.complexity.MPCMessage.FromParty(childComplexity), true
-	case "MPCMessage.id":
-		if e.complexity.MPCMessage.ID == nil {
-			break
-		}
-
-		return e.complexity.MPCMessage.ID(childComplexity), true
-	case "MPCMessage.isBroadcast":
-		if e.complexity.MPCMessage.IsBroadcast == nil {
-			break
-		}
-
-		return e.complexity.MPCMessage.IsBroadcast(childComplexity), true
-	case "MPCMessage.payload":
-		if e.complexity.MPCMessage.Payload == nil {
-			break
-		}
-
-		return e.complexity.MPCMessage.Payload(childComplexity), true
-	case "MPCMessage.round":
-		if e.complexity.MPCMessage.Round == nil {
-			break
-		}
-
-		return e.complexity.MPCMessage.Round(childComplexity), true
-	case "MPCMessage.sessionId":
-		if e.complexity.MPCMessage.SessionID == nil {
-			break
-		}
-
-		return e.complexity.MPCMessage.SessionID(childComplexity), true
-	case "MPCMessage.timestamp":
-		if e.complexity.MPCMessage.Timestamp == nil {
-			break
-		}
-
-		return e.complexity.MPCMessage.Timestamp(childComplexity), true
-	case "MPCMessage.toParties":
-		if e.complexity.MPCMessage.ToParties == nil {
-			break
-		}
-
-		return e.complexity.MPCMessage.ToParties(childComplexity), true
-
-	case "Mutation.acknowledgeMessage":
-		if e.complexity.Mutation.AcknowledgeMessage == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_acknowledgeMessage_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.AcknowledgeMessage(childComplexity, args["messageId"].(string), args["partyId"].(string)), true
-	case "Mutation.cancelSession":
-		if e.complexity.Mutation.CancelSession == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_cancelSession_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.CancelSession(childComplexity, args["id"].(string)), true
 	case "Mutation.createSession":
 		if e.complexity.Mutation.CreateSession == nil {
 			break
@@ -376,17 +159,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.CreateSession(childComplexity, args["input"].(model.CreateSessionInput)), true
-	case "Mutation.joinSession":
-		if e.complexity.Mutation.JoinSession == nil {
+	case "Mutation.deleteNode":
+		if e.complexity.Mutation.DeleteNode == nil {
 			break
 		}
 
-		args, err := ec.field_Mutation_joinSession_args(ctx, rawArgs)
+		args, err := ec.field_Mutation_deleteNode_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Mutation.JoinSession(childComplexity, args["sessionId"].(string), args["partyId"].(string)), true
+		return e.complexity.Mutation.DeleteNode(childComplexity, args["id"].(string)), true
 	case "Mutation.registerNode":
 		if e.complexity.Mutation.RegisterNode == nil {
 			break
@@ -398,17 +181,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.RegisterNode(childComplexity, args["input"].(model.RegisterNodeInput)), true
-	case "Mutation.sendMessage":
-		if e.complexity.Mutation.SendMessage == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_sendMessage_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.SendMessage(childComplexity, args["input"].(model.SendMessageInput)), true
 	case "Mutation.startKeygen":
 		if e.complexity.Mutation.StartKeygen == nil {
 			break
@@ -419,40 +191,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Mutation.StartKeygen(childComplexity, args["sessionId"].(string)), true
-	case "Mutation.startSigning":
-		if e.complexity.Mutation.StartSigning == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_startSigning_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.StartSigning(childComplexity, args["input"].(model.SigningInput)), true
-	case "Mutation.unregisterNode":
-		if e.complexity.Mutation.UnregisterNode == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_unregisterNode_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.UnregisterNode(childComplexity, args["id"].(string)), true
-	case "Mutation.updateNodeStatus":
-		if e.complexity.Mutation.UpdateNodeStatus == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_updateNodeStatus_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.UpdateNodeStatus(childComplexity, args["id"].(string), args["status"].(model.NodeStatus)), true
+		return e.complexity.Mutation.StartKeygen(childComplexity, args["input"].(model.StartKeygenInput)), true
 
 	case "Node.address":
 		if e.complexity.Node.Address == nil {
@@ -491,37 +230,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Node.Status(childComplexity), true
 
-	case "NodeHealth.offline":
-		if e.complexity.NodeHealth.Offline == nil {
-			break
-		}
-
-		return e.complexity.NodeHealth.Offline(childComplexity), true
-	case "NodeHealth.online":
-		if e.complexity.NodeHealth.Online == nil {
-			break
-		}
-
-		return e.complexity.NodeHealth.Online(childComplexity), true
-	case "NodeHealth.total":
-		if e.complexity.NodeHealth.Total == nil {
-			break
-		}
-
-		return e.complexity.NodeHealth.Total(childComplexity), true
-
-	case "Query.activeSessions":
-		if e.complexity.Query.ActiveSessions == nil {
-			break
-		}
-
-		return e.complexity.Query.ActiveSessions(childComplexity), true
-	case "Query.healthCheck":
-		if e.complexity.Query.HealthCheck == nil {
-			break
-		}
-
-		return e.complexity.Query.HealthCheck(childComplexity), true
 	case "Query.node":
 		if e.complexity.Query.Node == nil {
 			break
@@ -539,40 +247,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.Nodes(childComplexity), true
-	case "Query.onlineNodes":
-		if e.complexity.Query.OnlineNodes == nil {
-			break
-		}
-
-		return e.complexity.Query.OnlineNodes(childComplexity), true
-	case "Query.pendingMessages":
-		if e.complexity.Query.PendingMessages == nil {
-			break
-		}
-
-		args, err := ec.field_Query_pendingMessages_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Query.PendingMessages(childComplexity, args["partyId"].(string)), true
-	case "Query.session":
-		if e.complexity.Query.Session == nil {
-			break
-		}
-
-		args, err := ec.field_Query_session_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Query.Session(childComplexity, args["id"].(string)), true
-	case "Query.sessions":
-		if e.complexity.Query.Sessions == nil {
-			break
-		}
-
-		return e.complexity.Query.Sessions(childComplexity), true
 
 	case "Session.completedAt":
 		if e.complexity.Session.CompletedAt == nil {
@@ -598,12 +272,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Session.Participants(childComplexity), true
-	case "Session.result":
-		if e.complexity.Session.Result == nil {
-			break
-		}
-
-		return e.complexity.Session.Result(childComplexity), true
 	case "Session.status":
 		if e.complexity.Session.Status == nil {
 			break
@@ -623,110 +291,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Session.Type(childComplexity), true
 
-	case "SessionHealth.active":
-		if e.complexity.SessionHealth.Active == nil {
-			break
-		}
-
-		return e.complexity.SessionHealth.Active(childComplexity), true
-	case "SessionHealth.completed":
-		if e.complexity.SessionHealth.Completed == nil {
-			break
-		}
-
-		return e.complexity.SessionHealth.Completed(childComplexity), true
-	case "SessionHealth.failed":
-		if e.complexity.SessionHealth.Failed == nil {
-			break
-		}
-
-		return e.complexity.SessionHealth.Failed(childComplexity), true
-	case "SessionHealth.pending":
-		if e.complexity.SessionHealth.Pending == nil {
-			break
-		}
-
-		return e.complexity.SessionHealth.Pending(childComplexity), true
-
-	case "SessionResult.data":
-		if e.complexity.SessionResult.Data == nil {
-			break
-		}
-
-		return e.complexity.SessionResult.Data(childComplexity), true
-	case "SessionResult.message":
-		if e.complexity.SessionResult.Message == nil {
-			break
-		}
-
-		return e.complexity.SessionResult.Message(childComplexity), true
-	case "SessionResult.success":
-		if e.complexity.SessionResult.Success == nil {
-			break
-		}
-
-		return e.complexity.SessionResult.Success(childComplexity), true
-
-	case "SigningResult.r":
-		if e.complexity.SigningResult.R == nil {
-			break
-		}
-
-		return e.complexity.SigningResult.R(childComplexity), true
-	case "SigningResult.s":
-		if e.complexity.SigningResult.S == nil {
-			break
-		}
-
-		return e.complexity.SigningResult.S(childComplexity), true
-	case "SigningResult.sessionId":
-		if e.complexity.SigningResult.SessionID == nil {
-			break
-		}
-
-		return e.complexity.SigningResult.SessionID(childComplexity), true
-	case "SigningResult.signature":
-		if e.complexity.SigningResult.Signature == nil {
-			break
-		}
-
-		return e.complexity.SigningResult.Signature(childComplexity), true
-	case "SigningResult.v":
-		if e.complexity.SigningResult.V == nil {
-			break
-		}
-
-		return e.complexity.SigningResult.V(childComplexity), true
-
-	case "Subscription.messages":
-		if e.complexity.Subscription.Messages == nil {
-			break
-		}
-
-		args, err := ec.field_Subscription_messages_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Subscription.Messages(childComplexity, args["partyId"].(string), args["sessionId"].(string)), true
-	case "Subscription.nodeStatusChanged":
-		if e.complexity.Subscription.NodeStatusChanged == nil {
-			break
-		}
-
-		return e.complexity.Subscription.NodeStatusChanged(childComplexity), true
-	case "Subscription.sessionUpdated":
-		if e.complexity.Subscription.SessionUpdated == nil {
-			break
-		}
-
-		args, err := ec.field_Subscription_sessionUpdated_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Subscription.SessionUpdated(childComplexity, args["sessionId"].(string)), true
-
 	}
 	return 0, false
 }
@@ -737,8 +301,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
 		ec.unmarshalInputCreateSessionInput,
 		ec.unmarshalInputRegisterNodeInput,
-		ec.unmarshalInputSendMessageInput,
-		ec.unmarshalInputSigningInput,
+		ec.unmarshalInputStartKeygenInput,
 	)
 	first := true
 
@@ -782,23 +345,6 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 			ctx = graphql.WithUnmarshalerMap(ctx, inputUnmarshalMap)
 			data := ec._Mutation(ctx, opCtx.Operation.SelectionSet)
 			var buf bytes.Buffer
-			data.MarshalGQL(&buf)
-
-			return &graphql.Response{
-				Data: buf.Bytes(),
-			}
-		}
-	case ast.Subscription:
-		next := ec._Subscription(ctx, opCtx.Operation.SelectionSet)
-
-		var buf bytes.Buffer
-		return func(ctx context.Context) *graphql.Response {
-			buf.Reset()
-			data := next(ctx)
-
-			if data == nil {
-				return nil
-			}
 			data.MarshalGQL(&buf)
 
 			return &graphql.Response{
@@ -872,33 +418,6 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
 // region    ***************************** args.gotpl *****************************
 
-func (ec *executionContext) field_Mutation_acknowledgeMessage_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "messageId", ec.unmarshalNID2string)
-	if err != nil {
-		return nil, err
-	}
-	args["messageId"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "partyId", ec.unmarshalNString2string)
-	if err != nil {
-		return nil, err
-	}
-	args["partyId"] = arg1
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_cancelSession_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
-	if err != nil {
-		return nil, err
-	}
-	args["id"] = arg0
-	return args, nil
-}
-
 func (ec *executionContext) field_Mutation_createSession_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -910,19 +429,14 @@ func (ec *executionContext) field_Mutation_createSession_args(ctx context.Contex
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_joinSession_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Mutation_deleteNode_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "sessionId", ec.unmarshalNID2string)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
 	if err != nil {
 		return nil, err
 	}
-	args["sessionId"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "partyId", ec.unmarshalNString2string)
-	if err != nil {
-		return nil, err
-	}
-	args["partyId"] = arg1
+	args["id"] = arg0
 	return args, nil
 }
 
@@ -937,63 +451,14 @@ func (ec *executionContext) field_Mutation_registerNode_args(ctx context.Context
 	return args, nil
 }
 
-func (ec *executionContext) field_Mutation_sendMessage_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNSendMessageInput2githubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSendMessageInput)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-
 func (ec *executionContext) field_Mutation_startKeygen_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "sessionId", ec.unmarshalNID2string)
-	if err != nil {
-		return nil, err
-	}
-	args["sessionId"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_startSigning_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNSigningInput2githubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSigningInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNStartKeygenInput2githubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐStartKeygenInput)
 	if err != nil {
 		return nil, err
 	}
 	args["input"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_unregisterNode_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
-	if err != nil {
-		return nil, err
-	}
-	args["id"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Mutation_updateNodeStatus_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
-	if err != nil {
-		return nil, err
-	}
-	args["id"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "status", ec.unmarshalNNodeStatus2githubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐNodeStatus)
-	if err != nil {
-		return nil, err
-	}
-	args["status"] = arg1
 	return args, nil
 }
 
@@ -1016,55 +481,6 @@ func (ec *executionContext) field_Query_node_args(ctx context.Context, rawArgs m
 		return nil, err
 	}
 	args["id"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Query_pendingMessages_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "partyId", ec.unmarshalNString2string)
-	if err != nil {
-		return nil, err
-	}
-	args["partyId"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Query_session_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id", ec.unmarshalNID2string)
-	if err != nil {
-		return nil, err
-	}
-	args["id"] = arg0
-	return args, nil
-}
-
-func (ec *executionContext) field_Subscription_messages_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "partyId", ec.unmarshalNString2string)
-	if err != nil {
-		return nil, err
-	}
-	args["partyId"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "sessionId", ec.unmarshalNString2string)
-	if err != nil {
-		return nil, err
-	}
-	args["sessionId"] = arg1
-	return args, nil
-}
-
-func (ec *executionContext) field_Subscription_sessionUpdated_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "sessionId", ec.unmarshalNID2string)
-	if err != nil {
-		return nil, err
-	}
-	args["sessionId"] = arg0
 	return args, nil
 }
 
@@ -1120,256 +536,6 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 
 // region    **************************** field.gotpl *****************************
 
-func (ec *executionContext) _HealthCheck_status(ctx context.Context, field graphql.CollectedField, obj *model.HealthCheck) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_HealthCheck_status,
-		func(ctx context.Context) (any, error) {
-			return obj.Status, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_HealthCheck_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "HealthCheck",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _HealthCheck_timestamp(ctx context.Context, field graphql.CollectedField, obj *model.HealthCheck) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_HealthCheck_timestamp,
-		func(ctx context.Context) (any, error) {
-			return obj.Timestamp, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_HealthCheck_timestamp(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "HealthCheck",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _HealthCheck_version(ctx context.Context, field graphql.CollectedField, obj *model.HealthCheck) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_HealthCheck_version,
-		func(ctx context.Context) (any, error) {
-			return obj.Version, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_HealthCheck_version(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "HealthCheck",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _HealthCheck_uptime(ctx context.Context, field graphql.CollectedField, obj *model.HealthCheck) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_HealthCheck_uptime,
-		func(ctx context.Context) (any, error) {
-			return obj.Uptime, nil
-		},
-		nil,
-		ec.marshalNInt2int32,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_HealthCheck_uptime(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "HealthCheck",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _HealthCheck_nodes(ctx context.Context, field graphql.CollectedField, obj *model.HealthCheck) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_HealthCheck_nodes,
-		func(ctx context.Context) (any, error) {
-			return obj.Nodes, nil
-		},
-		nil,
-		ec.marshalNNodeHealth2ᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐNodeHealth,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_HealthCheck_nodes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "HealthCheck",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "total":
-				return ec.fieldContext_NodeHealth_total(ctx, field)
-			case "online":
-				return ec.fieldContext_NodeHealth_online(ctx, field)
-			case "offline":
-				return ec.fieldContext_NodeHealth_offline(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type NodeHealth", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _HealthCheck_sessions(ctx context.Context, field graphql.CollectedField, obj *model.HealthCheck) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_HealthCheck_sessions,
-		func(ctx context.Context) (any, error) {
-			return obj.Sessions, nil
-		},
-		nil,
-		ec.marshalNSessionHealth2ᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSessionHealth,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_HealthCheck_sessions(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "HealthCheck",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "active":
-				return ec.fieldContext_SessionHealth_active(ctx, field)
-			case "pending":
-				return ec.fieldContext_SessionHealth_pending(ctx, field)
-			case "completed":
-				return ec.fieldContext_SessionHealth_completed(ctx, field)
-			case "failed":
-				return ec.fieldContext_SessionHealth_failed(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type SessionHealth", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _KeyShare_partyId(ctx context.Context, field graphql.CollectedField, obj *model.KeyShare) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_KeyShare_partyId,
-		func(ctx context.Context) (any, error) {
-			return obj.PartyID, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_KeyShare_partyId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "KeyShare",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _KeyShare_publicShare(ctx context.Context, field graphql.CollectedField, obj *model.KeyShare) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_KeyShare_publicShare,
-		func(ctx context.Context) (any, error) {
-			return obj.PublicShare, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_KeyShare_publicShare(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "KeyShare",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _KeygenResult_sessionId(ctx context.Context, field graphql.CollectedField, obj *model.KeygenResult) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -1380,7 +546,7 @@ func (ec *executionContext) _KeygenResult_sessionId(ctx context.Context, field g
 			return obj.SessionID, nil
 		},
 		nil,
-		ec.marshalNString2string,
+		ec.marshalNID2string,
 		true,
 		true,
 	)
@@ -1393,7 +559,7 @@ func (ec *executionContext) fieldContext_KeygenResult_sessionId(_ context.Contex
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
+			return nil, errors.New("field of type ID does not have child fields")
 		},
 	}
 	return fc, nil
@@ -1457,41 +623,6 @@ func (ec *executionContext) fieldContext_KeygenResult_address(_ context.Context,
 	return fc, nil
 }
 
-func (ec *executionContext) _KeygenResult_shares(ctx context.Context, field graphql.CollectedField, obj *model.KeygenResult) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_KeygenResult_shares,
-		func(ctx context.Context) (any, error) {
-			return obj.Shares, nil
-		},
-		nil,
-		ec.marshalNKeyShare2ᚕᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐKeyShareᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_KeygenResult_shares(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "KeygenResult",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "partyId":
-				return ec.fieldContext_KeyShare_partyId(ctx, field)
-			case "publicShare":
-				return ec.fieldContext_KeyShare_publicShare(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type KeyShare", field.Name)
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _KeygenResult_threshold(ctx context.Context, field graphql.CollectedField, obj *model.KeygenResult) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -1545,238 +676,6 @@ func (ec *executionContext) fieldContext_KeygenResult_totalParties(_ context.Con
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _MPCMessage_id(ctx context.Context, field graphql.CollectedField, obj *model.MPCMessage) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_MPCMessage_id,
-		func(ctx context.Context) (any, error) {
-			return obj.ID, nil
-		},
-		nil,
-		ec.marshalNID2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_MPCMessage_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "MPCMessage",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _MPCMessage_sessionId(ctx context.Context, field graphql.CollectedField, obj *model.MPCMessage) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_MPCMessage_sessionId,
-		func(ctx context.Context) (any, error) {
-			return obj.SessionID, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_MPCMessage_sessionId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "MPCMessage",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _MPCMessage_fromParty(ctx context.Context, field graphql.CollectedField, obj *model.MPCMessage) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_MPCMessage_fromParty,
-		func(ctx context.Context) (any, error) {
-			return obj.FromParty, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_MPCMessage_fromParty(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "MPCMessage",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _MPCMessage_toParties(ctx context.Context, field graphql.CollectedField, obj *model.MPCMessage) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_MPCMessage_toParties,
-		func(ctx context.Context) (any, error) {
-			return obj.ToParties, nil
-		},
-		nil,
-		ec.marshalNString2ᚕstringᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_MPCMessage_toParties(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "MPCMessage",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _MPCMessage_isBroadcast(ctx context.Context, field graphql.CollectedField, obj *model.MPCMessage) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_MPCMessage_isBroadcast,
-		func(ctx context.Context) (any, error) {
-			return obj.IsBroadcast, nil
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_MPCMessage_isBroadcast(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "MPCMessage",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _MPCMessage_round(ctx context.Context, field graphql.CollectedField, obj *model.MPCMessage) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_MPCMessage_round,
-		func(ctx context.Context) (any, error) {
-			return obj.Round, nil
-		},
-		nil,
-		ec.marshalNInt2int32,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_MPCMessage_round(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "MPCMessage",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _MPCMessage_payload(ctx context.Context, field graphql.CollectedField, obj *model.MPCMessage) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_MPCMessage_payload,
-		func(ctx context.Context) (any, error) {
-			return obj.Payload, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_MPCMessage_payload(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "MPCMessage",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _MPCMessage_timestamp(ctx context.Context, field graphql.CollectedField, obj *model.MPCMessage) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_MPCMessage_timestamp,
-		func(ctx context.Context) (any, error) {
-			return obj.Timestamp, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_MPCMessage_timestamp(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "MPCMessage",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -1837,65 +736,24 @@ func (ec *executionContext) fieldContext_Mutation_registerNode(ctx context.Conte
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_unregisterNode(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Mutation_deleteNode(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Mutation_unregisterNode,
+		ec.fieldContext_Mutation_deleteNode,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().UnregisterNode(ctx, fc.Args["id"].(string))
+			return ec.resolvers.Mutation().DeleteNode(ctx, fc.Args["id"].(string))
 		},
 		nil,
-		ec.marshalNBoolean2bool,
+		ec.marshalONode2ᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐNode,
 		true,
-		true,
+		false,
 	)
 }
 
-func (ec *executionContext) fieldContext_Mutation_unregisterNode(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_unregisterNode_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_updateNodeStatus(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_updateNodeStatus,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().UpdateNodeStatus(ctx, fc.Args["id"].(string), fc.Args["status"].(model.NodeStatus))
-		},
-		nil,
-		ec.marshalNNode2ᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐNode,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_updateNodeStatus(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_deleteNode(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -1926,7 +784,7 @@ func (ec *executionContext) fieldContext_Mutation_updateNodeStatus(ctx context.C
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_updateNodeStatus_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_deleteNode_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -1972,8 +830,6 @@ func (ec *executionContext) fieldContext_Mutation_createSession(ctx context.Cont
 				return ec.fieldContext_Session_createdAt(ctx, field)
 			case "completedAt":
 				return ec.fieldContext_Session_completedAt(ctx, field)
-			case "result":
-				return ec.fieldContext_Session_result(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Session", field.Name)
 		},
@@ -1992,106 +848,6 @@ func (ec *executionContext) fieldContext_Mutation_createSession(ctx context.Cont
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_joinSession(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_joinSession,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().JoinSession(ctx, fc.Args["sessionId"].(string), fc.Args["partyId"].(string))
-		},
-		nil,
-		ec.marshalNSession2ᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSession,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_joinSession(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Session_id(ctx, field)
-			case "type":
-				return ec.fieldContext_Session_type(ctx, field)
-			case "status":
-				return ec.fieldContext_Session_status(ctx, field)
-			case "participants":
-				return ec.fieldContext_Session_participants(ctx, field)
-			case "threshold":
-				return ec.fieldContext_Session_threshold(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_Session_createdAt(ctx, field)
-			case "completedAt":
-				return ec.fieldContext_Session_completedAt(ctx, field)
-			case "result":
-				return ec.fieldContext_Session_result(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Session", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_joinSession_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_cancelSession(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_cancelSession,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().CancelSession(ctx, fc.Args["id"].(string))
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_cancelSession(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_cancelSession_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Mutation_startKeygen(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -2100,10 +856,10 @@ func (ec *executionContext) _Mutation_startKeygen(ctx context.Context, field gra
 		ec.fieldContext_Mutation_startKeygen,
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().StartKeygen(ctx, fc.Args["sessionId"].(string))
+			return ec.resolvers.Mutation().StartKeygen(ctx, fc.Args["input"].(model.StartKeygenInput))
 		},
 		nil,
-		ec.marshalNSession2ᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSession,
+		ec.marshalNKeygenResult2ᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐKeygenResult,
 		true,
 		true,
 	)
@@ -2117,24 +873,18 @@ func (ec *executionContext) fieldContext_Mutation_startKeygen(ctx context.Contex
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
-			case "id":
-				return ec.fieldContext_Session_id(ctx, field)
-			case "type":
-				return ec.fieldContext_Session_type(ctx, field)
-			case "status":
-				return ec.fieldContext_Session_status(ctx, field)
-			case "participants":
-				return ec.fieldContext_Session_participants(ctx, field)
+			case "sessionId":
+				return ec.fieldContext_KeygenResult_sessionId(ctx, field)
+			case "publicKey":
+				return ec.fieldContext_KeygenResult_publicKey(ctx, field)
+			case "address":
+				return ec.fieldContext_KeygenResult_address(ctx, field)
 			case "threshold":
-				return ec.fieldContext_Session_threshold(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_Session_createdAt(ctx, field)
-			case "completedAt":
-				return ec.fieldContext_Session_completedAt(ctx, field)
-			case "result":
-				return ec.fieldContext_Session_result(ctx, field)
+				return ec.fieldContext_KeygenResult_threshold(ctx, field)
+			case "totalParties":
+				return ec.fieldContext_KeygenResult_totalParties(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type Session", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type KeygenResult", field.Name)
 		},
 	}
 	defer func() {
@@ -2145,165 +895,6 @@ func (ec *executionContext) fieldContext_Mutation_startKeygen(ctx context.Contex
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_startKeygen_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_startSigning(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_startSigning,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().StartSigning(ctx, fc.Args["input"].(model.SigningInput))
-		},
-		nil,
-		ec.marshalNSession2ᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSession,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_startSigning(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Session_id(ctx, field)
-			case "type":
-				return ec.fieldContext_Session_type(ctx, field)
-			case "status":
-				return ec.fieldContext_Session_status(ctx, field)
-			case "participants":
-				return ec.fieldContext_Session_participants(ctx, field)
-			case "threshold":
-				return ec.fieldContext_Session_threshold(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_Session_createdAt(ctx, field)
-			case "completedAt":
-				return ec.fieldContext_Session_completedAt(ctx, field)
-			case "result":
-				return ec.fieldContext_Session_result(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Session", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_startSigning_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_sendMessage(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_sendMessage,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().SendMessage(ctx, fc.Args["input"].(model.SendMessageInput))
-		},
-		nil,
-		ec.marshalNMPCMessage2ᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐMPCMessage,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_sendMessage(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_MPCMessage_id(ctx, field)
-			case "sessionId":
-				return ec.fieldContext_MPCMessage_sessionId(ctx, field)
-			case "fromParty":
-				return ec.fieldContext_MPCMessage_fromParty(ctx, field)
-			case "toParties":
-				return ec.fieldContext_MPCMessage_toParties(ctx, field)
-			case "isBroadcast":
-				return ec.fieldContext_MPCMessage_isBroadcast(ctx, field)
-			case "round":
-				return ec.fieldContext_MPCMessage_round(ctx, field)
-			case "payload":
-				return ec.fieldContext_MPCMessage_payload(ctx, field)
-			case "timestamp":
-				return ec.fieldContext_MPCMessage_timestamp(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type MPCMessage", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_sendMessage_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_acknowledgeMessage(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_acknowledgeMessage,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().AcknowledgeMessage(ctx, fc.Args["messageId"].(string), fc.Args["partyId"].(string))
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_acknowledgeMessage(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_acknowledgeMessage_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -2484,136 +1075,6 @@ func (ec *executionContext) fieldContext_Node_lastSeen(_ context.Context, field 
 	return fc, nil
 }
 
-func (ec *executionContext) _NodeHealth_total(ctx context.Context, field graphql.CollectedField, obj *model.NodeHealth) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_NodeHealth_total,
-		func(ctx context.Context) (any, error) {
-			return obj.Total, nil
-		},
-		nil,
-		ec.marshalNInt2int32,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_NodeHealth_total(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "NodeHealth",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _NodeHealth_online(ctx context.Context, field graphql.CollectedField, obj *model.NodeHealth) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_NodeHealth_online,
-		func(ctx context.Context) (any, error) {
-			return obj.Online, nil
-		},
-		nil,
-		ec.marshalNInt2int32,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_NodeHealth_online(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "NodeHealth",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _NodeHealth_offline(ctx context.Context, field graphql.CollectedField, obj *model.NodeHealth) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_NodeHealth_offline,
-		func(ctx context.Context) (any, error) {
-			return obj.Offline, nil
-		},
-		nil,
-		ec.marshalNInt2int32,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_NodeHealth_offline(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "NodeHealth",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Query_healthCheck(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Query_healthCheck,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Query().HealthCheck(ctx)
-		},
-		nil,
-		ec.marshalNHealthCheck2ᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐHealthCheck,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Query_healthCheck(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Query",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "status":
-				return ec.fieldContext_HealthCheck_status(ctx, field)
-			case "timestamp":
-				return ec.fieldContext_HealthCheck_timestamp(ctx, field)
-			case "version":
-				return ec.fieldContext_HealthCheck_version(ctx, field)
-			case "uptime":
-				return ec.fieldContext_HealthCheck_uptime(ctx, field)
-			case "nodes":
-				return ec.fieldContext_HealthCheck_nodes(ctx, field)
-			case "sessions":
-				return ec.fieldContext_HealthCheck_sessions(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type HealthCheck", field.Name)
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Query_nodes(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -2706,261 +1167,6 @@ func (ec *executionContext) fieldContext_Query_node(ctx context.Context, field g
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_node_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Query_onlineNodes(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Query_onlineNodes,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Query().OnlineNodes(ctx)
-		},
-		nil,
-		ec.marshalNNode2ᚕᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐNodeᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Query_onlineNodes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Query",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Node_id(ctx, field)
-			case "partyId":
-				return ec.fieldContext_Node_partyId(ctx, field)
-			case "address":
-				return ec.fieldContext_Node_address(ctx, field)
-			case "publicKey":
-				return ec.fieldContext_Node_publicKey(ctx, field)
-			case "status":
-				return ec.fieldContext_Node_status(ctx, field)
-			case "lastSeen":
-				return ec.fieldContext_Node_lastSeen(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Node", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Query_sessions(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Query_sessions,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Query().Sessions(ctx)
-		},
-		nil,
-		ec.marshalNSession2ᚕᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSessionᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Query_sessions(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Query",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Session_id(ctx, field)
-			case "type":
-				return ec.fieldContext_Session_type(ctx, field)
-			case "status":
-				return ec.fieldContext_Session_status(ctx, field)
-			case "participants":
-				return ec.fieldContext_Session_participants(ctx, field)
-			case "threshold":
-				return ec.fieldContext_Session_threshold(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_Session_createdAt(ctx, field)
-			case "completedAt":
-				return ec.fieldContext_Session_completedAt(ctx, field)
-			case "result":
-				return ec.fieldContext_Session_result(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Session", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Query_session(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Query_session,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Query().Session(ctx, fc.Args["id"].(string))
-		},
-		nil,
-		ec.marshalOSession2ᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSession,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_Query_session(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Query",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Session_id(ctx, field)
-			case "type":
-				return ec.fieldContext_Session_type(ctx, field)
-			case "status":
-				return ec.fieldContext_Session_status(ctx, field)
-			case "participants":
-				return ec.fieldContext_Session_participants(ctx, field)
-			case "threshold":
-				return ec.fieldContext_Session_threshold(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_Session_createdAt(ctx, field)
-			case "completedAt":
-				return ec.fieldContext_Session_completedAt(ctx, field)
-			case "result":
-				return ec.fieldContext_Session_result(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Session", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Query_session_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Query_activeSessions(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Query_activeSessions,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Query().ActiveSessions(ctx)
-		},
-		nil,
-		ec.marshalNSession2ᚕᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSessionᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Query_activeSessions(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Query",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Session_id(ctx, field)
-			case "type":
-				return ec.fieldContext_Session_type(ctx, field)
-			case "status":
-				return ec.fieldContext_Session_status(ctx, field)
-			case "participants":
-				return ec.fieldContext_Session_participants(ctx, field)
-			case "threshold":
-				return ec.fieldContext_Session_threshold(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_Session_createdAt(ctx, field)
-			case "completedAt":
-				return ec.fieldContext_Session_completedAt(ctx, field)
-			case "result":
-				return ec.fieldContext_Session_result(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Session", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Query_pendingMessages(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Query_pendingMessages,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Query().PendingMessages(ctx, fc.Args["partyId"].(string))
-		},
-		nil,
-		ec.marshalNMPCMessage2ᚕᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐMPCMessageᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Query_pendingMessages(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Query",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_MPCMessage_id(ctx, field)
-			case "sessionId":
-				return ec.fieldContext_MPCMessage_sessionId(ctx, field)
-			case "fromParty":
-				return ec.fieldContext_MPCMessage_fromParty(ctx, field)
-			case "toParties":
-				return ec.fieldContext_MPCMessage_toParties(ctx, field)
-			case "isBroadcast":
-				return ec.fieldContext_MPCMessage_isBroadcast(ctx, field)
-			case "round":
-				return ec.fieldContext_MPCMessage_round(ctx, field)
-			case "payload":
-				return ec.fieldContext_MPCMessage_payload(ctx, field)
-			case "timestamp":
-				return ec.fieldContext_MPCMessage_timestamp(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type MPCMessage", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Query_pendingMessages_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -3274,552 +1480,6 @@ func (ec *executionContext) fieldContext_Session_completedAt(_ context.Context, 
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
 		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Session_result(ctx context.Context, field graphql.CollectedField, obj *model.Session) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Session_result,
-		func(ctx context.Context) (any, error) {
-			return obj.Result, nil
-		},
-		nil,
-		ec.marshalOSessionResult2ᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSessionResult,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_Session_result(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Session",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "success":
-				return ec.fieldContext_SessionResult_success(ctx, field)
-			case "message":
-				return ec.fieldContext_SessionResult_message(ctx, field)
-			case "data":
-				return ec.fieldContext_SessionResult_data(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type SessionResult", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SessionHealth_active(ctx context.Context, field graphql.CollectedField, obj *model.SessionHealth) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_SessionHealth_active,
-		func(ctx context.Context) (any, error) {
-			return obj.Active, nil
-		},
-		nil,
-		ec.marshalNInt2int32,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_SessionHealth_active(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SessionHealth",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SessionHealth_pending(ctx context.Context, field graphql.CollectedField, obj *model.SessionHealth) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_SessionHealth_pending,
-		func(ctx context.Context) (any, error) {
-			return obj.Pending, nil
-		},
-		nil,
-		ec.marshalNInt2int32,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_SessionHealth_pending(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SessionHealth",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SessionHealth_completed(ctx context.Context, field graphql.CollectedField, obj *model.SessionHealth) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_SessionHealth_completed,
-		func(ctx context.Context) (any, error) {
-			return obj.Completed, nil
-		},
-		nil,
-		ec.marshalNInt2int32,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_SessionHealth_completed(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SessionHealth",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SessionHealth_failed(ctx context.Context, field graphql.CollectedField, obj *model.SessionHealth) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_SessionHealth_failed,
-		func(ctx context.Context) (any, error) {
-			return obj.Failed, nil
-		},
-		nil,
-		ec.marshalNInt2int32,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_SessionHealth_failed(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SessionHealth",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SessionResult_success(ctx context.Context, field graphql.CollectedField, obj *model.SessionResult) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_SessionResult_success,
-		func(ctx context.Context) (any, error) {
-			return obj.Success, nil
-		},
-		nil,
-		ec.marshalNBoolean2bool,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_SessionResult_success(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SessionResult",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SessionResult_message(ctx context.Context, field graphql.CollectedField, obj *model.SessionResult) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_SessionResult_message,
-		func(ctx context.Context) (any, error) {
-			return obj.Message, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_SessionResult_message(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SessionResult",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SessionResult_data(ctx context.Context, field graphql.CollectedField, obj *model.SessionResult) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_SessionResult_data,
-		func(ctx context.Context) (any, error) {
-			return obj.Data, nil
-		},
-		nil,
-		ec.marshalOString2ᚖstring,
-		true,
-		false,
-	)
-}
-
-func (ec *executionContext) fieldContext_SessionResult_data(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SessionResult",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SigningResult_sessionId(ctx context.Context, field graphql.CollectedField, obj *model.SigningResult) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_SigningResult_sessionId,
-		func(ctx context.Context) (any, error) {
-			return obj.SessionID, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_SigningResult_sessionId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SigningResult",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SigningResult_signature(ctx context.Context, field graphql.CollectedField, obj *model.SigningResult) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_SigningResult_signature,
-		func(ctx context.Context) (any, error) {
-			return obj.Signature, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_SigningResult_signature(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SigningResult",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SigningResult_r(ctx context.Context, field graphql.CollectedField, obj *model.SigningResult) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_SigningResult_r,
-		func(ctx context.Context) (any, error) {
-			return obj.R, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_SigningResult_r(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SigningResult",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SigningResult_s(ctx context.Context, field graphql.CollectedField, obj *model.SigningResult) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_SigningResult_s,
-		func(ctx context.Context) (any, error) {
-			return obj.S, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_SigningResult_s(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SigningResult",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _SigningResult_v(ctx context.Context, field graphql.CollectedField, obj *model.SigningResult) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_SigningResult_v,
-		func(ctx context.Context) (any, error) {
-			return obj.V, nil
-		},
-		nil,
-		ec.marshalNInt2int32,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_SigningResult_v(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "SigningResult",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Subscription_nodeStatusChanged(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
-	return graphql.ResolveFieldStream(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Subscription_nodeStatusChanged,
-		func(ctx context.Context) (any, error) {
-			return ec.resolvers.Subscription().NodeStatusChanged(ctx)
-		},
-		nil,
-		ec.marshalNNode2ᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐNode,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Subscription_nodeStatusChanged(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Subscription",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Node_id(ctx, field)
-			case "partyId":
-				return ec.fieldContext_Node_partyId(ctx, field)
-			case "address":
-				return ec.fieldContext_Node_address(ctx, field)
-			case "publicKey":
-				return ec.fieldContext_Node_publicKey(ctx, field)
-			case "status":
-				return ec.fieldContext_Node_status(ctx, field)
-			case "lastSeen":
-				return ec.fieldContext_Node_lastSeen(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Node", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Subscription_sessionUpdated(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
-	return graphql.ResolveFieldStream(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Subscription_sessionUpdated,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Subscription().SessionUpdated(ctx, fc.Args["sessionId"].(string))
-		},
-		nil,
-		ec.marshalNSession2ᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSession,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Subscription_sessionUpdated(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Subscription",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Session_id(ctx, field)
-			case "type":
-				return ec.fieldContext_Session_type(ctx, field)
-			case "status":
-				return ec.fieldContext_Session_status(ctx, field)
-			case "participants":
-				return ec.fieldContext_Session_participants(ctx, field)
-			case "threshold":
-				return ec.fieldContext_Session_threshold(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_Session_createdAt(ctx, field)
-			case "completedAt":
-				return ec.fieldContext_Session_completedAt(ctx, field)
-			case "result":
-				return ec.fieldContext_Session_result(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Session", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Subscription_sessionUpdated_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Subscription_messages(ctx context.Context, field graphql.CollectedField) (ret func(ctx context.Context) graphql.Marshaler) {
-	return graphql.ResolveFieldStream(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Subscription_messages,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Subscription().Messages(ctx, fc.Args["partyId"].(string), fc.Args["sessionId"].(string))
-		},
-		nil,
-		ec.marshalNMPCMessage2ᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐMPCMessage,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Subscription_messages(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Subscription",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_MPCMessage_id(ctx, field)
-			case "sessionId":
-				return ec.fieldContext_MPCMessage_sessionId(ctx, field)
-			case "fromParty":
-				return ec.fieldContext_MPCMessage_fromParty(ctx, field)
-			case "toParties":
-				return ec.fieldContext_MPCMessage_toParties(ctx, field)
-			case "isBroadcast":
-				return ec.fieldContext_MPCMessage_isBroadcast(ctx, field)
-			case "round":
-				return ec.fieldContext_MPCMessage_round(ctx, field)
-			case "payload":
-				return ec.fieldContext_MPCMessage_payload(ctx, field)
-			case "timestamp":
-				return ec.fieldContext_MPCMessage_timestamp(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type MPCMessage", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Subscription_messages_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
 	}
 	return fc, nil
 }
@@ -5352,82 +3012,41 @@ func (ec *executionContext) unmarshalInputRegisterNodeInput(ctx context.Context,
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputSendMessageInput(ctx context.Context, obj any) (model.SendMessageInput, error) {
-	var it model.SendMessageInput
+func (ec *executionContext) unmarshalInputStartKeygenInput(ctx context.Context, obj any) (model.StartKeygenInput, error) {
+	var it model.StartKeygenInput
 	asMap := map[string]any{}
 	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"sessionId", "toParties", "payload"}
+	fieldsInOrder := [...]string{"participants", "threshold", "curve"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
-		case "sessionId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("sessionId"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.SessionID = data
-		case "toParties":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("toParties"))
+		case "participants":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("participants"))
 			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.ToParties = data
-		case "payload":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("payload"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Payload = data
-		}
-	}
-
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputSigningInput(ctx context.Context, obj any) (model.SigningInput, error) {
-	var it model.SigningInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"keyId", "message", "participants"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "keyId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("keyId"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.KeyID = data
-		case "message":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("message"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Message = data
-		case "participants":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("participants"))
-			data, err := ec.unmarshalNString2ᚕstringᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
 			it.Participants = data
+		case "threshold":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("threshold"))
+			data, err := ec.unmarshalNInt2int32(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Threshold = data
+		case "curve":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("curve"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Curve = data
 		}
 	}
 
@@ -5441,114 +3060,6 @@ func (ec *executionContext) unmarshalInputSigningInput(ctx context.Context, obj 
 // endregion ************************** interface.gotpl ***************************
 
 // region    **************************** object.gotpl ****************************
-
-var healthCheckImplementors = []string{"HealthCheck"}
-
-func (ec *executionContext) _HealthCheck(ctx context.Context, sel ast.SelectionSet, obj *model.HealthCheck) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, healthCheckImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("HealthCheck")
-		case "status":
-			out.Values[i] = ec._HealthCheck_status(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "timestamp":
-			out.Values[i] = ec._HealthCheck_timestamp(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "version":
-			out.Values[i] = ec._HealthCheck_version(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "uptime":
-			out.Values[i] = ec._HealthCheck_uptime(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "nodes":
-			out.Values[i] = ec._HealthCheck_nodes(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "sessions":
-			out.Values[i] = ec._HealthCheck_sessions(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-var keyShareImplementors = []string{"KeyShare"}
-
-func (ec *executionContext) _KeyShare(ctx context.Context, sel ast.SelectionSet, obj *model.KeyShare) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, keyShareImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("KeyShare")
-		case "partyId":
-			out.Values[i] = ec._KeyShare_partyId(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "publicShare":
-			out.Values[i] = ec._KeyShare_publicShare(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
 
 var keygenResultImplementors = []string{"KeygenResult"}
 
@@ -5576,11 +3087,6 @@ func (ec *executionContext) _KeygenResult(ctx context.Context, sel ast.Selection
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "shares":
-			out.Values[i] = ec._KeygenResult_shares(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		case "threshold":
 			out.Values[i] = ec._KeygenResult_threshold(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -5588,80 +3094,6 @@ func (ec *executionContext) _KeygenResult(ctx context.Context, sel ast.Selection
 			}
 		case "totalParties":
 			out.Values[i] = ec._KeygenResult_totalParties(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-var mPCMessageImplementors = []string{"MPCMessage"}
-
-func (ec *executionContext) _MPCMessage(ctx context.Context, sel ast.SelectionSet, obj *model.MPCMessage) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, mPCMessageImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("MPCMessage")
-		case "id":
-			out.Values[i] = ec._MPCMessage_id(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "sessionId":
-			out.Values[i] = ec._MPCMessage_sessionId(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "fromParty":
-			out.Values[i] = ec._MPCMessage_fromParty(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "toParties":
-			out.Values[i] = ec._MPCMessage_toParties(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "isBroadcast":
-			out.Values[i] = ec._MPCMessage_isBroadcast(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "round":
-			out.Values[i] = ec._MPCMessage_round(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "payload":
-			out.Values[i] = ec._MPCMessage_payload(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "timestamp":
-			out.Values[i] = ec._MPCMessage_timestamp(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -5714,20 +3146,10 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "unregisterNode":
+		case "deleteNode":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_unregisterNode(ctx, field)
+				return ec._Mutation_deleteNode(ctx, field)
 			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "updateNodeStatus":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_updateNodeStatus(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		case "createSession":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createSession(ctx, field)
@@ -5735,44 +3157,9 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "joinSession":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_joinSession(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "cancelSession":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_cancelSession(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		case "startKeygen":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_startKeygen(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "startSigning":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_startSigning(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "sendMessage":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_sendMessage(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "acknowledgeMessage":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_acknowledgeMessage(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -5864,55 +3251,6 @@ func (ec *executionContext) _Node(ctx context.Context, sel ast.SelectionSet, obj
 	return out
 }
 
-var nodeHealthImplementors = []string{"NodeHealth"}
-
-func (ec *executionContext) _NodeHealth(ctx context.Context, sel ast.SelectionSet, obj *model.NodeHealth) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, nodeHealthImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("NodeHealth")
-		case "total":
-			out.Values[i] = ec._NodeHealth_total(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "online":
-			out.Values[i] = ec._NodeHealth_online(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "offline":
-			out.Values[i] = ec._NodeHealth_offline(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
 var queryImplementors = []string{"Query"}
 
 func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
@@ -5932,28 +3270,6 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Query")
-		case "healthCheck":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Query_healthCheck(ctx, field)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			rrm := func(ctx context.Context) graphql.Marshaler {
-				return ec.OperationContext.RootResolverMiddleware(ctx,
-					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "nodes":
 			field := field
 
@@ -5986,113 +3302,6 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_node(ctx, field)
-				return res
-			}
-
-			rrm := func(ctx context.Context) graphql.Marshaler {
-				return ec.OperationContext.RootResolverMiddleware(ctx,
-					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
-		case "onlineNodes":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Query_onlineNodes(ctx, field)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			rrm := func(ctx context.Context) graphql.Marshaler {
-				return ec.OperationContext.RootResolverMiddleware(ctx,
-					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
-		case "sessions":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Query_sessions(ctx, field)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			rrm := func(ctx context.Context) graphql.Marshaler {
-				return ec.OperationContext.RootResolverMiddleware(ctx,
-					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
-		case "session":
-			field := field
-
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Query_session(ctx, field)
-				return res
-			}
-
-			rrm := func(ctx context.Context) graphql.Marshaler {
-				return ec.OperationContext.RootResolverMiddleware(ctx,
-					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
-		case "activeSessions":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Query_activeSessions(ctx, field)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			rrm := func(ctx context.Context) graphql.Marshaler {
-				return ec.OperationContext.RootResolverMiddleware(ctx,
-					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
-		case "pendingMessages":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Query_pendingMessages(ctx, field)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
 				return res
 			}
 
@@ -6176,8 +3385,6 @@ func (ec *executionContext) _Session(ctx context.Context, sel ast.SelectionSet, 
 			}
 		case "completedAt":
 			out.Values[i] = ec._Session_completedAt(ctx, field, obj)
-		case "result":
-			out.Values[i] = ec._Session_result(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -6199,189 +3406,6 @@ func (ec *executionContext) _Session(ctx context.Context, sel ast.SelectionSet, 
 	}
 
 	return out
-}
-
-var sessionHealthImplementors = []string{"SessionHealth"}
-
-func (ec *executionContext) _SessionHealth(ctx context.Context, sel ast.SelectionSet, obj *model.SessionHealth) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, sessionHealthImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("SessionHealth")
-		case "active":
-			out.Values[i] = ec._SessionHealth_active(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "pending":
-			out.Values[i] = ec._SessionHealth_pending(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "completed":
-			out.Values[i] = ec._SessionHealth_completed(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "failed":
-			out.Values[i] = ec._SessionHealth_failed(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-var sessionResultImplementors = []string{"SessionResult"}
-
-func (ec *executionContext) _SessionResult(ctx context.Context, sel ast.SelectionSet, obj *model.SessionResult) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, sessionResultImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("SessionResult")
-		case "success":
-			out.Values[i] = ec._SessionResult_success(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "message":
-			out.Values[i] = ec._SessionResult_message(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "data":
-			out.Values[i] = ec._SessionResult_data(ctx, field, obj)
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-var signingResultImplementors = []string{"SigningResult"}
-
-func (ec *executionContext) _SigningResult(ctx context.Context, sel ast.SelectionSet, obj *model.SigningResult) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, signingResultImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("SigningResult")
-		case "sessionId":
-			out.Values[i] = ec._SigningResult_sessionId(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "signature":
-			out.Values[i] = ec._SigningResult_signature(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "r":
-			out.Values[i] = ec._SigningResult_r(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "s":
-			out.Values[i] = ec._SigningResult_s(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "v":
-			out.Values[i] = ec._SigningResult_v(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-var subscriptionImplementors = []string{"Subscription"}
-
-func (ec *executionContext) _Subscription(ctx context.Context, sel ast.SelectionSet) func(ctx context.Context) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, subscriptionImplementors)
-	ctx = graphql.WithFieldContext(ctx, &graphql.FieldContext{
-		Object: "Subscription",
-	})
-	if len(fields) != 1 {
-		ec.Errorf(ctx, "must subscribe to exactly one stream")
-		return nil
-	}
-
-	switch fields[0].Name {
-	case "nodeStatusChanged":
-		return ec._Subscription_nodeStatusChanged(ctx, fields[0])
-	case "sessionUpdated":
-		return ec._Subscription_sessionUpdated(ctx, fields[0])
-	case "messages":
-		return ec._Subscription_messages(ctx, fields[0])
-	default:
-		panic("unknown field " + strconv.Quote(fields[0].Name))
-	}
 }
 
 var __DirectiveImplementors = []string{"__Directive"}
@@ -6740,20 +3764,6 @@ func (ec *executionContext) unmarshalNCreateSessionInput2githubᚗcomᚋmpc_hsm�
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNHealthCheck2githubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐHealthCheck(ctx context.Context, sel ast.SelectionSet, v model.HealthCheck) graphql.Marshaler {
-	return ec._HealthCheck(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNHealthCheck2ᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐHealthCheck(ctx context.Context, sel ast.SelectionSet, v *model.HealthCheck) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._HealthCheck(ctx, sel, v)
-}
-
 func (ec *executionContext) unmarshalNID2string(ctx context.Context, v any) (string, error) {
 	res, err := graphql.UnmarshalID(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -6786,116 +3796,18 @@ func (ec *executionContext) marshalNInt2int32(ctx context.Context, sel ast.Selec
 	return res
 }
 
-func (ec *executionContext) marshalNKeyShare2ᚕᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐKeyShareᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.KeyShare) graphql.Marshaler {
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNKeyShare2ᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐKeyShare(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
+func (ec *executionContext) marshalNKeygenResult2githubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐKeygenResult(ctx context.Context, sel ast.SelectionSet, v model.KeygenResult) graphql.Marshaler {
+	return ec._KeygenResult(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNKeyShare2ᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐKeyShare(ctx context.Context, sel ast.SelectionSet, v *model.KeyShare) graphql.Marshaler {
+func (ec *executionContext) marshalNKeygenResult2ᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐKeygenResult(ctx context.Context, sel ast.SelectionSet, v *model.KeygenResult) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
 		}
 		return graphql.Null
 	}
-	return ec._KeyShare(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNMPCMessage2githubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐMPCMessage(ctx context.Context, sel ast.SelectionSet, v model.MPCMessage) graphql.Marshaler {
-	return ec._MPCMessage(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNMPCMessage2ᚕᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐMPCMessageᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.MPCMessage) graphql.Marshaler {
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNMPCMessage2ᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐMPCMessage(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
-func (ec *executionContext) marshalNMPCMessage2ᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐMPCMessage(ctx context.Context, sel ast.SelectionSet, v *model.MPCMessage) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._MPCMessage(ctx, sel, v)
+	return ec._KeygenResult(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNNode2githubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐNode(ctx context.Context, sel ast.SelectionSet, v model.Node) graphql.Marshaler {
@@ -6956,16 +3868,6 @@ func (ec *executionContext) marshalNNode2ᚖgithubᚗcomᚋmpc_hsmᚋorchestrato
 	return ec._Node(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNNodeHealth2ᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐNodeHealth(ctx context.Context, sel ast.SelectionSet, v *model.NodeHealth) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._NodeHealth(ctx, sel, v)
-}
-
 func (ec *executionContext) unmarshalNNodeStatus2githubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐNodeStatus(ctx context.Context, v any) (model.NodeStatus, error) {
 	var res model.NodeStatus
 	err := res.UnmarshalGQL(v)
@@ -6981,57 +3883,8 @@ func (ec *executionContext) unmarshalNRegisterNodeInput2githubᚗcomᚋmpc_hsm�
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNSendMessageInput2githubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSendMessageInput(ctx context.Context, v any) (model.SendMessageInput, error) {
-	res, err := ec.unmarshalInputSendMessageInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
 func (ec *executionContext) marshalNSession2githubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSession(ctx context.Context, sel ast.SelectionSet, v model.Session) graphql.Marshaler {
 	return ec._Session(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNSession2ᚕᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSessionᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Session) graphql.Marshaler {
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNSession2ᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSession(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
 }
 
 func (ec *executionContext) marshalNSession2ᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSession(ctx context.Context, sel ast.SelectionSet, v *model.Session) graphql.Marshaler {
@@ -7042,16 +3895,6 @@ func (ec *executionContext) marshalNSession2ᚖgithubᚗcomᚋmpc_hsmᚋorchestr
 		return graphql.Null
 	}
 	return ec._Session(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNSessionHealth2ᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSessionHealth(ctx context.Context, sel ast.SelectionSet, v *model.SessionHealth) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._SessionHealth(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNSessionStatus2githubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSessionStatus(ctx context.Context, v any) (model.SessionStatus, error) {
@@ -7074,8 +3917,8 @@ func (ec *executionContext) marshalNSessionType2githubᚗcomᚋmpc_hsmᚋorchest
 	return v
 }
 
-func (ec *executionContext) unmarshalNSigningInput2githubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSigningInput(ctx context.Context, v any) (model.SigningInput, error) {
-	res, err := ec.unmarshalInputSigningInput(ctx, v)
+func (ec *executionContext) unmarshalNStartKeygenInput2githubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐStartKeygenInput(ctx context.Context, v any) (model.StartKeygenInput, error) {
+	res, err := ec.unmarshalInputStartKeygenInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -7413,20 +4256,6 @@ func (ec *executionContext) marshalONode2ᚖgithubᚗcomᚋmpc_hsmᚋorchestrato
 		return graphql.Null
 	}
 	return ec._Node(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalOSession2ᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSession(ctx context.Context, sel ast.SelectionSet, v *model.Session) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	return ec._Session(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalOSessionResult2ᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSessionResult(ctx context.Context, sel ast.SelectionSet, v *model.SessionResult) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	return ec._SessionResult(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOString2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {

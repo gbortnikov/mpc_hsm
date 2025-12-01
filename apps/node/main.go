@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"log/slog"
 	"net"
 	"os"
 	"os/signal"
@@ -20,8 +21,18 @@ func main() {
 	port := flag.Int("port", 50051, "gRPC server port")
 	nodeID := flag.String("node-id", "", "Node ID (required)")
 	partyID := flag.String("party-id", "", "Party ID for MPC operations (required)")
+	debug := flag.Bool("debug", false, "Enable debug logging")
 
 	flag.Parse()
+
+	// Настройка уровня логирования
+	logLevel := slog.LevelInfo
+	if *debug {
+		logLevel = slog.LevelDebug
+	}
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: logLevel,
+	})))
 
 	// Валидация
 	if *nodeID == "" {

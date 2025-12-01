@@ -22,9 +22,18 @@ type Node {
 }
 
 input RegisterNodeInput {
-  partyId: String!
+  """
+  Адрес ноды для подключения (обязательный)
+  """
   address: String!
-  publicKey: String!
+  """
+  Party ID ноды (опционально - получается от ноды автоматически)
+  """
+  partyId: String
+  """
+  Публичный ключ ноды (опционально - получается от ноды автоматически)
+  """
+  publicKey: String
 }
 
 # ============================================
@@ -52,13 +61,6 @@ type Session {
   threshold: Int!
   createdAt: String!
   completedAt: String
-  result: SessionResult
-}
-
-type SessionResult {
-  success: Boolean!
-  message: String!
-  data: String
 }
 
 input CreateSessionInput {
@@ -68,86 +70,33 @@ input CreateSessionInput {
 }
 
 # ============================================
-# Маршрутизация сообщений
+# Результаты MPC операций
 # ============================================
-
-type MPCMessage {
-  id: ID!
-  sessionId: String!
-  fromParty: String!
-  toParties: [String!]!
-  isBroadcast: Boolean!
-  round: Int!
-  payload: String!
-  timestamp: String!
-}
-
-input SendMessageInput {
-  sessionId: String!
-  toParties: [String!]
-  payload: String!
-}
-
-# ============================================
-# Результаты генерации ключей
-# ============================================
-
-type KeyShare {
-  partyId: String!
-  publicShare: String!
-}
 
 type KeygenResult {
-  sessionId: String!
+  sessionId: ID!
   publicKey: String!
   address: String!
-  shares: [KeyShare!]!
   threshold: Int!
   totalParties: Int!
 }
 
-# ============================================
-# Подписание
-# ============================================
-
-input SigningInput {
-  keyId: String!
-  message: String!
-  participants: [String!]!
-}
-
-type SigningResult {
-  sessionId: String!
-  signature: String!
-  r: String!
-  s: String!
-  v: Int!
-}
-
-# ============================================
-# Health Check
-# ============================================
-
-type HealthCheck {
-  status: String!
-  timestamp: String!
-  version: String!
-  uptime: Int!
-  nodes: NodeHealth!
-  sessions: SessionHealth!
-}
-
-type NodeHealth {
-  total: Int!
-  online: Int!
-  offline: Int!
-}
-
-type SessionHealth {
-  active: Int!
-  pending: Int!
-  completed: Int!
-  failed: Int!
+input StartKeygenInput {
+  """
+  Список party ID участников генерации ключей.
+  Если не указан - используются все зарегистрированные ноды.
+  """
+  participants: [String!]
+  """
+  Пороговое значение (минимальное количество участников для подписания).
+  Должно быть <= количества участников.
+  """
+  threshold: Int!
+  """
+  Эллиптическая кривая для ключа: secp256k1, ed25519 и др.
+  По умолчанию: secp256k1
+  """
+  curve: String
 }
 
 # ============================================
@@ -155,21 +104,9 @@ type SessionHealth {
 # ============================================
 
 type Query {
-  # Health check
-  healthCheck: HealthCheck!
-
   # Запросы нод
   nodes: [Node!]!
   node(id: ID!): Node
-  onlineNodes: [Node!]!
-
-  # Запросы сессий
-  sessions: [Session!]!
-  session(id: ID!): Session
-  activeSessions: [Session!]!
-
-  # Запросы сообщений
-  pendingMessages(partyId: String!): [MPCMessage!]!
 }
 
 # ============================================
@@ -179,34 +116,15 @@ type Query {
 type Mutation {
   # Управление нодами
   registerNode(input: RegisterNodeInput!): Node!
-  unregisterNode(id: ID!): Boolean!
-  updateNodeStatus(id: ID!, status: NodeStatus!): Node!
+  deleteNode(id: ID!): Node
 
   # Управление сессиями
   createSession(input: CreateSessionInput!): Session!
-  joinSession(sessionId: ID!, partyId: String!): Session!
-  cancelSession(id: ID!): Boolean!
 
   # MPC операции
-  startKeygen(sessionId: ID!): Session!
-  startSigning(input: SigningInput!): Session!
-
-  # Маршрутизация сообщений
-  sendMessage(input: SendMessageInput!): MPCMessage!
-  acknowledgeMessage(messageId: ID!, partyId: String!): Boolean!
-}
-
-# ============================================
-# Подписки (для обновлений в реальном времени)
-# ============================================
-
-type Subscription {
-  # Обновления статуса нод
-  nodeStatusChanged: Node!
-
-  # Обновления сессий
-  sessionUpdated(sessionId: ID!): Session!
-
-  # Поток сообщений для участника
-  messages(partyId: String!, sessionId: String!): MPCMessage!
+  """
+  Запускает распределённую генерацию ключей (DKG) между MPC нодами.
+  Возвращает результат с публичным ключом и адресом.
+  """
+  startKeygen(input: StartKeygenInput!): KeygenResult!
 }

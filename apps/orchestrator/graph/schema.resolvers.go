@@ -59,47 +59,29 @@ func (r *mutationResolver) RegisterNode(ctx context.Context, input model.Registe
 
 	log.Printf("Нода зарегистрирована: %s (party: %s, address: %s)", id, partyID, input.Address)
 
-	// Уведомляем подписчиков
-	select {
-	case r.nodeUpdates <- node:
-	default:
-	}
-
 	return node, nil
 }
 
-// UnregisterNode - резолвер для удаления ноды из реестра.
-func (r *mutationResolver) UnregisterNode(ctx context.Context, id string) (bool, error) {
+// DeleteNode is the resolver for the deleteNode field.
+func (r *mutationResolver) DeleteNode(ctx context.Context, id string) (*model.Node, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if _, exists := r.nodes[id]; !exists {
-		return false, fmt.Errorf("нода %s не найдена", id)
-	}
-
-	delete(r.nodes, id)
-	return true, nil
-}
-
-// UpdateNodeStatus - резолвер для обновления статуса ноды.
-func (r *mutationResolver) UpdateNodeStatus(ctx context.Context, id string, status model.NodeStatus) (*model.Node, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
+	// Проверяем, существует ли нода в локальном хранилище
 	node, exists := r.nodes[id]
 	if !exists {
 		return nil, fmt.Errorf("нода %s не найдена", id)
 	}
 
-	node.Status = status
-	node.LastSeen = time.Now().UTC().Format(time.RFC3339)
-
-	// Уведомляем подписчиков
-	select {
-	case r.nodeUpdates <- node:
-	default:
+	// Удаляем из NodeManager по partyID
+	if err := r.NodeManager.RemoveNode(node.PartyID); err != nil {
+		log.Printf("Предупреждение: не удалось удалить ноду из NodeManager: %v", err)
 	}
 
+	// Удаляем из локального хранилища
+	delete(r.nodes, id)
+
+	node.Status = model.NodeStatusOffline
 	return node, nil
 }
 
@@ -121,276 +103,197 @@ func (r *mutationResolver) CreateSession(ctx context.Context, input model.Create
 	}
 
 	r.sessions[id] = session
-	r.messages[id] = make([]*model.MPCMessage, 0)
 
-	// Создаём канал для обновлений сессии
-	r.sessionUpdates[id] = make(chan *model.Session, 100)
+	log.Printf("Сессия создана: %s (type: %s, participants: %v)", id, input.Type, input.Participants)
 
 	return session, nil
 }
 
-// JoinSession - резолвер для присоединения участника к сессии.
-func (r *mutationResolver) JoinSession(ctx context.Context, sessionID string, partyID string) (*model.Session, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	session, exists := r.sessions[sessionID]
-	if !exists {
-		return nil, fmt.Errorf("сессия %s не найдена", sessionID)
-	}
-
-	// Проверяем, не присоединился ли участник ранее
-	for _, p := range session.Participants {
-		if p == partyID {
-			return session, nil // Уже присоединён
+// StartKeygen - резолвер для запуска распределённой генерации ключей (DKG).
+// Координирует keygen между всеми участвующими MPC нодами.
+func (r *mutationResolver) StartKeygen(ctx context.Context, input model.StartKeygenInput) (*model.KeygenResult, error) {
+	// Определяем участников
+	var participants []string
+	if len(input.Participants) > 0 {
+		participants = input.Participants
+	} else {
+		// Используем все зарегистрированные ноды
+		r.mu.RLock()
+		for _, node := range r.nodes {
+			participants = append(participants, node.PartyID)
 		}
+		r.mu.RUnlock()
 	}
 
-	session.Participants = append(session.Participants, partyID)
-
-	// Уведомляем подписчиков
-	if ch, ok := r.sessionUpdates[sessionID]; ok {
-		select {
-		case ch <- session:
-		default:
-		}
+	if len(participants) < 2 {
+		return nil, fmt.Errorf("требуется минимум 2 участника для keygen, получено: %d", len(participants))
 	}
 
-	return session, nil
-}
+	if int(input.Threshold) > len(participants) {
+		return nil, fmt.Errorf("threshold (%d) не может быть больше количества участников (%d)", input.Threshold, len(participants))
+	}
 
-// CancelSession - резолвер для отмены сессии.
-func (r *mutationResolver) CancelSession(ctx context.Context, id string) (bool, error) {
+	if input.Threshold < 1 {
+		return nil, fmt.Errorf("threshold должен быть >= 1")
+	}
+
+	// Определяем кривую
+	curve := "secp256k1"
+	if input.Curve != nil && *input.Curve != "" {
+		curve = *input.Curve
+	}
+
+	// Генерируем ID сессии
 	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	session, exists := r.sessions[id]
-	if !exists {
-		return false, fmt.Errorf("сессия %s не найдена", id)
-	}
-
-	session.Status = model.SessionStatusFailed
-	now := time.Now().UTC().Format(time.RFC3339)
-	session.CompletedAt = &now
-
-	// Уведомляем подписчиков
-	if ch, ok := r.sessionUpdates[id]; ok {
-		select {
-		case ch <- session:
-		default:
-		}
-	}
-
-	return true, nil
-}
-
-// StartKeygen - резолвер для запуска распределённой генерации ключей.
-// Инициализирует keygen на всех подключённых нодах.
-func (r *mutationResolver) StartKeygen(ctx context.Context, sessionID string) (*model.Session, error) {
-	r.mu.Lock()
-	session, exists := r.sessions[sessionID]
-	if !exists {
-		r.mu.Unlock()
-		return nil, fmt.Errorf("сессия %s не найдена", sessionID)
-	}
-
-	if session.Type != model.SessionTypeKeygen {
-		r.mu.Unlock()
-		return nil, fmt.Errorf("сессия %s не является сессией генерации ключей", sessionID)
-	}
-
-	participants := session.Participants
-	threshold := session.Threshold
+	r.sessionCounter++
+	sessionID := fmt.Sprintf("keygen_%d", r.sessionCounter)
 	r.mu.Unlock()
 
-	// Получаем клиенты нод для всех участников
-	nodes, err := r.NodeManager.GetNodesByPartyIDs(participants)
+	log.Printf("Запуск keygen сессии %s: participants=%v, threshold=%d, curve=%s",
+		sessionID, participants, input.Threshold, curve)
+
+	// Получаем клиентов для всех участников
+	clients, err := r.NodeManager.GetNodesByPartyIDs(participants)
 	if err != nil {
-		return nil, fmt.Errorf("не все ноды подключены: %w", err)
+		return nil, fmt.Errorf("не удалось получить ноды: %w", err)
 	}
 
-	// Формируем информацию об участниках для протокола
+	// Формируем информацию о участниках
 	parties := make([]*pb.PartyInfo, len(participants))
 	for i, partyID := range participants {
-		node, _ := r.NodeManager.GetNode(partyID)
+		client, _ := r.NodeManager.GetNode(partyID)
 		parties[i] = &pb.PartyInfo{
 			PartyId:    partyID,
 			PartyIndex: int32(i),
-			Address:    node.GetAddress(),
+			Address:    client.GetAddress(),
 		}
 	}
 
 	// Инициализируем keygen на всех нодах
-	for _, node := range nodes {
-		if err := node.InitKeygen(ctx, sessionID, parties, threshold, "secp256k1"); err != nil {
-			return nil, fmt.Errorf("не удалось инициализировать keygen на ноде %s: %w", node.GetPartyID(), err)
-		}
-		log.Printf("Keygen инициализирован на ноде %s", node.GetPartyID())
-	}
-
-	r.mu.Lock()
-	session.Status = model.SessionStatusInProgress
-	r.mu.Unlock()
-
-	// Запускаем координацию сообщений в фоне с отдельным контекстом
-	// (контекст HTTP-запроса завершится после возврата ответа)
-	go r.coordinateKeygen(context.Background(), sessionID, nodes)
-
-	// Уведомляем подписчиков
-	if ch, ok := r.sessionUpdates[sessionID]; ok {
-		select {
-		case ch <- session:
-		default:
+	for _, client := range clients {
+		if err := client.InitKeygen(ctx, sessionID, parties, input.Threshold, curve); err != nil {
+			return nil, fmt.Errorf("не удалось инициализировать keygen на ноде %s: %w", client.GetPartyID(), err)
 		}
 	}
 
-	return session, nil
-}
+	log.Printf("Keygen инициализирован на всех нодах, начинаем обмен сообщениями")
 
-// StartSigning - резолвер для запуска распределённого подписания.
-func (r *mutationResolver) StartSigning(ctx context.Context, input model.SigningInput) (*model.Session, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	// Даём время нодам запустить keygen и сгенерировать начальные сообщения
+	time.Sleep(1 * time.Second)
 
-	r.sessionCounter++
-	id := fmt.Sprintf("session_%d", r.sessionCounter)
+	// Выполняем раунды keygen с обменом сообщениями
+	maxIterations := 100
+	noMessageIterations := 0
 
-	session := &model.Session{
-		ID:           id,
-		Type:         model.SessionTypeSigning,
-		Status:       model.SessionStatusInProgress,
-		Participants: input.Participants,
-		Threshold:    int32(len(input.Participants)),
-		CreatedAt:    time.Now().UTC().Format(time.RFC3339),
-	}
+	// Очередь сообщений для рассылки
+	pendingMessages := make([]*pb.KeygenMessage, 0)
 
-	r.sessions[id] = session
-	r.messages[id] = make([]*model.MPCMessage, 0)
-	r.sessionUpdates[id] = make(chan *model.Session, 100)
+	for iteration := 0; iteration < maxIterations; iteration++ {
+		allCompleted := true
+		totalMessages := 0
 
-	return session, nil
-}
-
-// SendMessage - резолвер для отправки MPC сообщения между участниками.
-func (r *mutationResolver) SendMessage(ctx context.Context, input model.SendMessageInput) (*model.MPCMessage, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	session, exists := r.sessions[input.SessionID]
-	if !exists {
-		return nil, fmt.Errorf("сессия %s не найдена", input.SessionID)
-	}
-
-	r.messageCounter++
-	id := fmt.Sprintf("msg_%d", r.messageCounter)
-
-	isBroadcast := len(input.ToParties) == 0
-
-	msg := &model.MPCMessage{
-		ID:          id,
-		SessionID:   input.SessionID,
-		FromParty:   "", // Должно быть установлено из контекста/аутентификации
-		ToParties:   input.ToParties,
-		IsBroadcast: isBroadcast,
-		Round:       int32(len(r.messages[input.SessionID]) + 1),
-		Payload:     input.Payload,
-		Timestamp:   time.Now().UTC().Format(time.RFC3339),
-	}
-
-	r.messages[input.SessionID] = append(r.messages[input.SessionID], msg)
-
-	// Уведомляем подписчиков сообщений
-	if isBroadcast {
-		// Отправляем всем участникам
-		for _, partyID := range session.Participants {
-			key := fmt.Sprintf("%s:%s", partyID, input.SessionID)
-			if ch, ok := r.messageStreams[key]; ok {
-				select {
-				case ch <- msg:
-				default:
-				}
+		// Сначала собираем все сообщения со всех нод через GetKeygenResult
+		for _, client := range clients {
+			result, err := client.GetKeygenResult(ctx, sessionID)
+			fmt.Println("result", result, client.GetNodeID())
+			if err != nil {
+				return nil, fmt.Errorf("ошибка получения результата keygen от %s: %w", client.GetPartyID(), err)
 			}
-		}
-	} else {
-		// Отправляем конкретным участникам
-		for _, partyID := range input.ToParties {
-			key := fmt.Sprintf("%s:%s", partyID, input.SessionID)
-			if ch, ok := r.messageStreams[key]; ok {
-				select {
-				case ch <- msg:
-				default:
-				}
+
+			if !result.Completed {
+				allCompleted = false
 			}
+
+			pendingMessages = append(pendingMessages, result.OutgoingMessages...)
 		}
-	}
 
-	return msg, nil
-}
+		// Проверяем завершение до отправки сообщений
+		if allCompleted {
+			log.Printf("Keygen завершён на итерации %d", iteration)
+			break
+		}
 
-// AcknowledgeMessage - резолвер для подтверждения получения сообщения.
-func (r *mutationResolver) AcknowledgeMessage(ctx context.Context, messageID string, partyID string) (bool, error) {
-	// В реальной реализации здесь должно быть отслеживание подтверждений
-	return true, nil
-}
+		// Отправляем все накопленные сообщения и собираем ответы
+		messagesToSend := pendingMessages
+		pendingMessages = make([]*pb.KeygenMessage, 0)
 
-// HealthCheck - резолвер для проверки состояния оркестратора.
-func (r *queryResolver) HealthCheck(ctx context.Context) (*model.HealthCheck, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+		for _, msg := range messagesToSend {
+			totalMessages++
+			// Отправляем сообщение и собираем ответные сообщения
+			responseMessages, err := r.broadcastAndCollect(ctx, msg)
+			if err != nil {
+				return nil, fmt.Errorf("ошибка рассылки сообщения: %w", err)
+			}
+			pendingMessages = append(pendingMessages, responseMessages...)
+		}
 
-	// Подсчёт статистики нод
-	var onlineCount, offlineCount int
-	for _, node := range r.nodes {
-		if node.Status == model.NodeStatusOnline {
-			onlineCount++
+		log.Printf("Итерация %d: отправлено=%d, получено=%d, allCompleted=%v",
+			iteration, totalMessages, len(pendingMessages), allCompleted)
+
+		if totalMessages == 0 && len(pendingMessages) == 0 {
+			noMessageIterations++
+			// Если 30 итераций подряд без сообщений - что-то пошло не так
+			if noMessageIterations > 30 {
+				log.Printf("Предупреждение: слишком много итераций без сообщений")
+				break
+			}
+			// Небольшая пауза если нет сообщений
+			time.Sleep(100 * time.Millisecond)
 		} else {
-			offlineCount++
+			noMessageIterations = 0
 		}
+
+		// Пауза между итерациями для обработки сообщений
+		time.Sleep(100 * time.Millisecond)
 	}
 
-	// Подсчёт статистики сессий
-	var activeCount, pendingCount, completedCount, failedCount int
-	for _, session := range r.sessions {
-		switch session.Status {
-		case model.SessionStatusInProgress:
-			activeCount++
-		case model.SessionStatusPending:
-			pendingCount++
-		case model.SessionStatusCompleted:
-			completedCount++
-		case model.SessionStatusFailed:
-			failedCount++
-		}
+	// Получаем финальный результат от первой ноды
+	finalResult, err := clients[0].GetKeygenResult(ctx, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("не удалось получить финальный результат keygen: %w", err)
 	}
 
-	uptime := int32(time.Since(r.startTime).Seconds())
+	if !finalResult.Completed || !finalResult.Success {
+		errMsg := "неизвестная ошибка"
+		if finalResult.ErrorMessage != "" {
+			errMsg = finalResult.ErrorMessage
+		}
+		return nil, fmt.Errorf("keygen не завершён успешно: %s", errMsg)
+	}
 
-	return &model.HealthCheck{
-		Status:    "ok",
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
-		Version:   Version,
-		Uptime:    uptime,
-		Nodes: &model.NodeHealth{
-			Total:   int32(len(r.nodes)),
-			Online:  int32(onlineCount),
-			Offline: int32(offlineCount),
-		},
-		Sessions: &model.SessionHealth{
-			Active:    int32(activeCount),
-			Pending:   int32(pendingCount),
-			Completed: int32(completedCount),
-			Failed:    int32(failedCount),
-		},
+	log.Printf("Keygen успешно завершён: publicKey=%s, address=%s",
+		finalResult.Result.PublicKey, finalResult.Result.Address)
+
+	return &model.KeygenResult{
+		SessionID:    sessionID,
+		PublicKey:    finalResult.Result.PublicKey,
+		Address:      finalResult.Result.Address,
+		Threshold:    finalResult.Result.Threshold,
+		TotalParties: finalResult.Result.TotalParties,
 	}, nil
 }
 
 // Nodes - резолвер для получения списка всех нод.
+// Проверяет статус каждой ноды через HealthCheck.
 func (r *queryResolver) Nodes(ctx context.Context) ([]*model.Node, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	nodes := make([]*model.Node, 0, len(r.nodes))
 	for _, node := range r.nodes {
+		// Проверяем статус ноды через HealthCheck
+		if client, exists := r.NodeManager.GetNode(node.PartyID); exists {
+			healthy, err := client.HealthCheck(ctx)
+			if err != nil || !healthy {
+				node.Status = model.NodeStatusOffline
+			} else {
+				node.Status = model.NodeStatusOnline
+				node.LastSeen = time.Now().UTC().Format(time.RFC3339)
+			}
+		} else {
+			node.Status = model.NodeStatusOffline
+		}
+
 		nodes = append(nodes, node)
 	}
 	return nodes, nil
@@ -401,172 +304,20 @@ func (r *queryResolver) Node(ctx context.Context, id string) (*model.Node, error
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	node, exists := r.nodes[id]
-	if !exists {
-		return nil, nil
+	node := r.nodes[id]
+	// Проверяем статус ноды через HealthCheck
+	if client, exists := r.NodeManager.GetNode(node.PartyID); exists {
+		healthy, err := client.HealthCheck(ctx)
+		if err != nil || !healthy {
+			node.Status = model.NodeStatusOffline
+		} else {
+			node.Status = model.NodeStatusOnline
+			node.LastSeen = time.Now().UTC().Format(time.RFC3339)
+		}
+	} else {
+		node.Status = model.NodeStatusOffline
 	}
 	return node, nil
-}
-
-// OnlineNodes - резолвер для получения списка онлайн нод.
-func (r *queryResolver) OnlineNodes(ctx context.Context) ([]*model.Node, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	nodes := make([]*model.Node, 0)
-	for _, node := range r.nodes {
-		if node.Status == model.NodeStatusOnline {
-			nodes = append(nodes, node)
-		}
-	}
-	return nodes, nil
-}
-
-// Sessions - резолвер для получения списка всех сессий.
-func (r *queryResolver) Sessions(ctx context.Context) ([]*model.Session, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	sessions := make([]*model.Session, 0, len(r.sessions))
-	for _, session := range r.sessions {
-		sessions = append(sessions, session)
-	}
-	return sessions, nil
-}
-
-// Session - резолвер для получения сессии по ID.
-func (r *queryResolver) Session(ctx context.Context, id string) (*model.Session, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	session, exists := r.sessions[id]
-	if !exists {
-		return nil, nil
-	}
-	return session, nil
-}
-
-// ActiveSessions - резолвер для получения списка активных сессий.
-func (r *queryResolver) ActiveSessions(ctx context.Context) ([]*model.Session, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	sessions := make([]*model.Session, 0)
-	for _, session := range r.sessions {
-		if session.Status == model.SessionStatusPending || session.Status == model.SessionStatusInProgress {
-			sessions = append(sessions, session)
-		}
-	}
-	return sessions, nil
-}
-
-// PendingMessages - резолвер для получения ожидающих сообщений для участника.
-func (r *queryResolver) PendingMessages(ctx context.Context, partyID string) ([]*model.MPCMessage, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	messages := make([]*model.MPCMessage, 0)
-	for _, sessionMsgs := range r.messages {
-		for _, msg := range sessionMsgs {
-			if msg.IsBroadcast {
-				messages = append(messages, msg)
-			} else {
-				for _, to := range msg.ToParties {
-					if to == partyID {
-						messages = append(messages, msg)
-						break
-					}
-				}
-			}
-		}
-	}
-	return messages, nil
-}
-
-// NodeStatusChanged - подписка на изменения статуса нод.
-func (r *subscriptionResolver) NodeStatusChanged(ctx context.Context) (<-chan *model.Node, error) {
-	// Создаём новый канал для подписчика
-	ch := make(chan *model.Node, 10)
-
-	go func() {
-		defer close(ch)
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case node := <-r.nodeUpdates:
-				select {
-				case ch <- node:
-				case <-ctx.Done():
-					return
-				}
-			}
-		}
-	}()
-
-	return ch, nil
-}
-
-// SessionUpdated - подписка на обновления сессии.
-func (r *subscriptionResolver) SessionUpdated(ctx context.Context, sessionID string) (<-chan *model.Session, error) {
-	r.mu.Lock()
-	if _, exists := r.sessionUpdates[sessionID]; !exists {
-		r.sessionUpdates[sessionID] = make(chan *model.Session, 100)
-	}
-	sourceCh := r.sessionUpdates[sessionID]
-	r.mu.Unlock()
-
-	ch := make(chan *model.Session, 10)
-
-	go func() {
-		defer close(ch)
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case session := <-sourceCh:
-				select {
-				case ch <- session:
-				case <-ctx.Done():
-					return
-				}
-			}
-		}
-	}()
-
-	return ch, nil
-}
-
-// Messages - подписка на поток MPC сообщений для участника.
-func (r *subscriptionResolver) Messages(ctx context.Context, partyID string, sessionID string) (<-chan *model.MPCMessage, error) {
-	key := fmt.Sprintf("%s:%s", partyID, sessionID)
-
-	r.mu.Lock()
-	if _, exists := r.messageStreams[key]; !exists {
-		r.messageStreams[key] = make(chan *model.MPCMessage, 100)
-	}
-	sourceCh := r.messageStreams[key]
-	r.mu.Unlock()
-
-	ch := make(chan *model.MPCMessage, 10)
-
-	go func() {
-		defer close(ch)
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case msg := <-sourceCh:
-				select {
-				case ch <- msg:
-				case <-ctx.Done():
-					return
-				}
-			}
-		}
-	}()
-
-	return ch, nil
 }
 
 // Mutation returns MutationResolver implementation.
@@ -575,9 +326,5 @@ func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
 // Query returns QueryResolver implementation.
 func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 
-// Subscription returns SubscriptionResolver implementation.
-func (r *Resolver) Subscription() SubscriptionResolver { return &subscriptionResolver{r} }
-
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
-type subscriptionResolver struct{ *Resolver }

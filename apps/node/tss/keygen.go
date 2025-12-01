@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
+	"log/slog"
 	"math/big"
 	"sync"
 	"time"
@@ -183,11 +184,29 @@ func (ks *KeygenSession) ProcessMessage(fromPartyID string, round int, payload [
 		return nil, fmt.Errorf("unknown sender party: %s", fromPartyID)
 	}
 
+	slog.Debug("ProcessMessage: calling UpdateFromBytes",
+		"session_id", ks.SessionID,
+		"from_party", fromPartyID,
+		"is_broadcast", isBroadcast,
+		"payload_len", len(payload),
+	)
+
 	// Обновляем party с входящими данными
-	_, err := party.UpdateFromBytes(payload, fromParty, isBroadcast)
+	ok, err := party.UpdateFromBytes(payload, fromParty, isBroadcast)
 	if err != nil {
+		slog.Error("ProcessMessage: UpdateFromBytes failed",
+			"session_id", ks.SessionID,
+			"from_party", fromPartyID,
+			"error", err,
+		)
 		return nil, fmt.Errorf("failed to process message: %w", err)
 	}
+
+	slog.Debug("ProcessMessage: UpdateFromBytes completed",
+		"session_id", ks.SessionID,
+		"from_party", fromPartyID,
+		"ok", ok,
+	)
 
 	// Собираем исходящие сообщения
 	return ks.collectOutgoingMessages(), nil
@@ -200,6 +219,7 @@ func (ks *KeygenSession) bufferOutgoingMessages() {
 		case msg := <-ks.OutCh:
 			wireBytes, _, err := msg.WireBytes()
 			if err != nil {
+				slog.Error("bufferOutgoingMessages: failed to get wire bytes", "error", err)
 				continue
 			}
 
@@ -214,6 +234,13 @@ func (ks *KeygenSession) bufferOutgoingMessages() {
 					outMsg.ToParties = append(outMsg.ToParties, d.Id)
 				}
 			}
+
+			slog.Debug("bufferOutgoingMessages: received message",
+				"session_id", ks.SessionID,
+				"from", outMsg.FromParty,
+				"to", outMsg.ToParties,
+				"is_broadcast", outMsg.IsBroadcast,
+			)
 
 			ks.bufferMu.Lock()
 			ks.outgoingBuffer = append(ks.outgoingBuffer, outMsg)
@@ -245,9 +272,15 @@ func (ks *KeygenSession) GetOutgoingMessages() []OutgoingMessage {
 
 // collectOutgoingMessages собирает сообщения из канала (для совместимости с ProcessMessage)
 func (ks *KeygenSession) collectOutgoingMessages() []OutgoingMessage {
-	// Даём немного времени для буферизации
-	time.Sleep(50 * time.Millisecond)
-	return ks.GetOutgoingMessages()
+	// Даём время для буферизации сообщений после UpdateFromBytes
+	// TSS библиотека генерирует сообщения асинхронно
+	time.Sleep(500 * time.Millisecond)
+	messages := ks.GetOutgoingMessages()
+	slog.Debug("collectOutgoingMessages: collected messages",
+		"session_id", ks.SessionID,
+		"count", len(messages),
+	)
+	return messages
 }
 
 // IsCompleted проверяет, завершена ли сессия

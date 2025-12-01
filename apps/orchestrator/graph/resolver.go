@@ -1,39 +1,26 @@
 package graph
 
 import (
+	"context"
+	"fmt"
 	"sync"
-	"time"
 
 	"github.com/mpc_hsm/orchestrator/graph/model"
 	"github.com/mpc_hsm/orchestrator/nodeclient"
+	pb "github.com/mpc_hsm/node/proto"
 )
 
-// Version - версия оркестратора
-const Version = "1.0.0"
-
 // Resolver - корневой резолвер для GraphQL.
-// Этот файл не будет автоматически перегенерирован.
-// Используется для внедрения зависимостей в приложение.
 type Resolver struct {
 	mu sync.RWMutex
 
-	// Время запуска сервера
-	startTime time.Time
-
-	// Хранилище в памяти (для продакшена заменить на БД)
+	// Хранилище в памяти
 	nodes    map[string]*model.Node
 	sessions map[string]*model.Session
-	messages map[string][]*model.MPCMessage // sessionId -> сообщения
 
 	// Счётчики для генерации ID
-	messageCounter int
 	sessionCounter int
 	nodeCounter    int
-
-	// Каналы для подписок
-	nodeUpdates    chan *model.Node                  // обновления статуса нод
-	sessionUpdates map[string]chan *model.Session    // sessionId -> канал обновлений
-	messageStreams map[string]chan *model.MPCMessage // partyId:sessionId -> канал сообщений
 
 	// Менеджер подключений к MPC нодам
 	NodeManager *nodeclient.NodeManager
@@ -42,13 +29,52 @@ type Resolver struct {
 // NewResolver создаёт новый экземпляр резолвера.
 func NewResolver() *Resolver {
 	return &Resolver{
-		startTime:      time.Now(),
-		nodes:          make(map[string]*model.Node),
-		sessions:       make(map[string]*model.Session),
-		messages:       make(map[string][]*model.MPCMessage),
-		nodeUpdates:    make(chan *model.Node, 100),
-		sessionUpdates: make(map[string]chan *model.Session),
-		messageStreams: make(map[string]chan *model.MPCMessage),
-		NodeManager:    nodeclient.NewNodeManager(),
+		nodes:       make(map[string]*model.Node),
+		sessions:    make(map[string]*model.Session),
+		NodeManager: nodeclient.NewNodeManager(),
 	}
+}
+
+// broadcastAndCollect рассылает keygen сообщение и собирает ответные сообщения
+func (r *mutationResolver) broadcastAndCollect(ctx context.Context, msg *pb.KeygenMessage) ([]*pb.KeygenMessage, error) {
+	var responseMessages []*pb.KeygenMessage
+
+	// Определяем получателей
+	recipients := r.NodeManager.GetAllNodes()
+
+	for _, client := range recipients {
+		// Пропускаем отправителя
+		if client.GetPartyID() == msg.FromParty {
+			continue
+		}
+
+		// Проверяем, является ли нода получателем для P2P сообщений
+		if !msg.IsBroadcast && len(msg.ToParties) > 0 {
+			isRecipient := false
+			for _, to := range msg.ToParties {
+				if to == client.GetPartyID() {
+					isRecipient = true
+					break
+				}
+			}
+			if !isRecipient {
+				continue
+			}
+		}
+
+		// Отправляем сообщение и получаем ответ
+		resp, err := client.ProcessKeygenMessage(ctx, msg)
+		if err != nil {
+			return nil, fmt.Errorf("failed to send message to %s: %w", client.GetPartyID(), err)
+		}
+
+		if !resp.Success {
+			return nil, fmt.Errorf("node %s rejected message: %s", client.GetPartyID(), resp.ErrorMessage)
+		}
+
+		// Добавляем ответные сообщения в список
+		responseMessages = append(responseMessages, resp.OutgoingMessages...)
+	}
+
+	return responseMessages, nil
 }
