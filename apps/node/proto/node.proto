@@ -4,6 +4,19 @@ package mpcnode;
 
 option go_package = "github.com/mpc_hsm/node/proto";
 
+// ============================================
+// Безопасность: подписанные сообщения
+// ============================================
+
+// SignedEnvelope оборачивает любое сообщение с криптографической подписью
+message SignedEnvelope {
+  bytes payload = 1;          // Сериализованное оригинальное сообщение
+  string signer_party_id = 2; // PartyID подписавшего
+  bytes signature = 3;        // Ed25519 подпись
+  int64 timestamp = 4;        // Unix timestamp в наносекундах
+  bytes nonce = 5;            // 16 байт случайных данных (защита от replay)
+}
+
 // MPC Node Service - основной сервис для MPC операций
 service MPCNodeService {
   // Проверка состояния ноды
@@ -44,6 +57,22 @@ service MPCNodeService {
 
   // Двунаправленный поток для обмена MPC сообщениями
   rpc MPCMessageStream(stream MPCStreamMessage) returns (stream MPCStreamMessage);
+
+  // ============================================
+  // Защищённые операции (P2P с подписями)
+  // ============================================
+
+  // Обработка подписанного keygen сообщения
+  rpc ProcessSignedKeygenMessage(SignedEnvelope) returns (SignedKeygenResponse);
+
+  // Обработка подписанного signing сообщения
+  rpc ProcessSignedSigningMessage(SignedEnvelope) returns (SignedSigningResponse);
+
+  // Обмен информацией о пирах (для P2P discovery)
+  rpc ExchangePeerInfo(PeerInfoRequest) returns (PeerInfoResponse);
+
+  // Ping для проверки связи
+  rpc Ping(PingRequest) returns (PingResponse);
 }
 
 // ============================================
@@ -63,10 +92,11 @@ message GetNodeInfoRequest {}
 message GetNodeInfoResponse {
   string node_id = 1;
   string party_id = 2;
-  string public_key = 3;
+  string public_key = 3;           // TSS публичный ключ
   string address = 4;
   NodeStatus status = 5;
   repeated string supported_curves = 6;
+  string signing_public_key = 7;   // Ed25519 публичный ключ для верификации подписей (base64)
 }
 
 enum NodeStatus {
@@ -92,6 +122,7 @@ message PartyInfo {
   string party_id = 1;
   int32 party_index = 2;
   string address = 3;
+  string signing_public_key = 4;   // Ed25519 публичный ключ участника (base64)
 }
 
 message InitKeygenResponse {
@@ -107,6 +138,10 @@ message KeygenMessage {
   int32 round = 4;
   bytes payload = 5;
   bool is_broadcast = 6;
+  // Поля безопасности (обязательные)
+  bytes signature = 7;        // Ed25519 подпись (session_id || from_party || round || payload || timestamp || nonce)
+  int64 timestamp = 8;        // Unix timestamp в наносекундах
+  bytes nonce = 9;            // 16 байт случайных данных
 }
 
 message KeygenMessageResponse {
@@ -160,6 +195,10 @@ message SigningMessage {
   int32 round = 4;
   bytes payload = 5;
   bool is_broadcast = 6;
+  // Поля безопасности (обязательные)
+  bytes signature = 7;        // Ed25519 подпись
+  int64 timestamp = 8;        // Unix timestamp в наносекундах
+  bytes nonce = 9;            // 16 байт случайных данных
 }
 
 message SigningMessageResponse {
@@ -177,6 +216,7 @@ message GetSigningResultResponse {
   bool success = 2;
   string error_message = 3;
   SigningResult result = 4;
+  repeated SigningMessage outgoing_messages = 5; // исходящие сообщения для маршрутизации
 }
 
 message SigningResult {
@@ -225,4 +265,106 @@ enum ControlType {
   CONTROL_TYPE_SESSION_END = 2;
   CONTROL_TYPE_ERROR = 3;
   CONTROL_TYPE_HEARTBEAT = 4;
+}
+
+// ============================================
+// P2P и защищённые сообщения
+// ============================================
+
+// Ответ на подписанное keygen сообщение
+message SignedKeygenResponse {
+  bool success = 1;
+  string error_message = 2;
+  repeated SignedEnvelope outgoing_messages = 3; // Подписанные исходящие сообщения
+}
+
+// Ответ на подписанное signing сообщение
+message SignedSigningResponse {
+  bool success = 1;
+  string error_message = 2;
+  repeated SignedEnvelope outgoing_messages = 3;
+}
+
+// Запрос информации о пирах
+message PeerInfoRequest {
+  string requester_party_id = 1;
+  string requester_public_key = 2; // Ed25519 публичный ключ (base64)
+}
+
+// Ответ с информацией о пирах
+message PeerInfoResponse {
+  string party_id = 1;
+  string signing_public_key = 2;
+  string address = 3;
+  repeated PeerRecord known_peers = 4; // Известные пиры для discovery
+}
+
+// Запись о пире
+message PeerRecord {
+  string party_id = 1;
+  string signing_public_key = 2;
+  string address = 3;
+  int64 last_seen = 4; // Unix timestamp
+}
+
+// Ping запрос
+message PingRequest {
+  string from_party_id = 1;
+  int64 timestamp = 2;
+}
+
+// Ping ответ
+message PingResponse {
+  string party_id = 1;
+  int64 timestamp = 2;
+  bool healthy = 3;
+}
+
+// ============================================
+// Сообщения для распределённой координации сессий
+// ============================================
+
+// Запрос на инициацию сессии (P2P)
+message SessionInitRequest {
+  string session_id = 1;
+  SessionType session_type = 2;
+  repeated string participant_party_ids = 3;
+  int32 threshold = 4;
+  string initiator_party_id = 5;
+  bytes initiator_signature = 6; // Подпись инициатора
+  int64 timestamp = 7;
+  string curve = 8;              // Для keygen
+  bytes message_to_sign = 9;     // Для signing
+  string key_id = 10;            // Для signing
+}
+
+// Ответ на запрос инициации сессии
+message SessionInitResponse {
+  bool accepted = 1;
+  string error_message = 2;
+  string party_id = 3;
+  bytes signature = 4; // Подпись подтверждения
+}
+
+// Команда старта сессии (после сбора ACK)
+message SessionStartCommand {
+  string session_id = 1;
+  repeated SessionParticipant participants = 2;
+  int64 timestamp = 3;
+  bytes initiator_signature = 4;
+}
+
+// Участник сессии с подтверждённым ключом
+message SessionParticipant {
+  string party_id = 1;
+  int32 party_index = 2;
+  string signing_public_key = 3;
+  string address = 4;
+}
+
+enum SessionType {
+  SESSION_TYPE_UNSPECIFIED = 0;
+  SESSION_TYPE_KEYGEN = 1;
+  SESSION_TYPE_SIGNING = 2;
+  SESSION_TYPE_RESHARING = 3;
 }

@@ -9,12 +9,6 @@ import (
 	"strconv"
 )
 
-type CreateSessionInput struct {
-	Type         SessionType `json:"type"`
-	Participants []string    `json:"participants"`
-	Threshold    int32       `json:"threshold"`
-}
-
 type KeygenResult struct {
 	SessionID    string `json:"sessionId"`
 	PublicKey    string `json:"publicKey"`
@@ -39,19 +33,20 @@ type Query struct {
 }
 
 type RegisterNodeInput struct {
-	PartyID   string `json:"partyId"`
-	Address   string `json:"address"`
-	PublicKey string `json:"publicKey"`
+	// Адрес ноды для подключения (обязательный)
+	Address string `json:"address"`
+	// Party ID ноды (опционально - получается от ноды автоматически)
+	PartyID *string `json:"partyId,omitempty"`
+	// Публичный ключ ноды (опционально - получается от ноды автоматически)
+	PublicKey *string `json:"publicKey,omitempty"`
 }
 
-type Session struct {
-	ID           string        `json:"id"`
-	Type         SessionType   `json:"type"`
-	Status       SessionStatus `json:"status"`
-	Participants []string      `json:"participants"`
-	Threshold    int32         `json:"threshold"`
-	CreatedAt    string        `json:"createdAt"`
-	CompletedAt  *string       `json:"completedAt,omitempty"`
+type SigningResult struct {
+	SessionID string `json:"sessionId"`
+	Signature string `json:"signature"`
+	R         string `json:"r"`
+	S         string `json:"s"`
+	V         int32  `json:"v"`
 }
 
 type StartKeygenInput struct {
@@ -64,6 +59,15 @@ type StartKeygenInput struct {
 	// Эллиптическая кривая для ключа: secp256k1, ed25519 и др.
 	// По умолчанию: secp256k1
 	Curve *string `json:"curve,omitempty"`
+}
+
+type StartSigningInput struct {
+	// Ethereum адрес кошелька для подписания (публичный ключ должен быть сгенерирован ранее)
+	Address string `json:"address"`
+	// Сообщение для подписания (hex или UTF-8 строка)
+	Message string `json:"message"`
+	// Список party ID участников подписания (опционально - используются все ноды с share для этого адреса)
+	Participants []string `json:"participants,omitempty"`
 }
 
 type NodeStatus string

@@ -6,18 +6,21 @@ package graph
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
-	"log"
 	"time"
 
 	pb "github.com/mpc_hsm/node/proto"
 	"github.com/mpc_hsm/orchestrator/graph/model"
+	"github.com/mpc_hsm/orchestrator/logger"
 )
 
 // RegisterNode - резолвер для регистрации новой ноды.
 // Подключается к ноде по gRPC и получает её информацию.
+// При подключении автоматически регистрируется Ed25519 публичный ключ ноды для верификации подписей.
 func (r *mutationResolver) RegisterNode(ctx context.Context, input model.RegisterNodeInput) (*model.Node, error) {
 	// Подключаемся к ноде через gRPC
+	// NodeManager автоматически регистрирует публичный ключ ноды в PartyRegistry
 	client, err := r.NodeManager.AddNode(ctx, input.Address)
 	if err != nil {
 		return nil, fmt.Errorf("не удалось подключиться к ноде %s: %w", input.Address, err)
@@ -36,15 +39,22 @@ func (r *mutationResolver) RegisterNode(ctx context.Context, input model.Registe
 	id := fmt.Sprintf("node_%d", r.nodeCounter)
 
 	// Используем данные от ноды, если не переданы явно
-	partyID := input.PartyID
-	if partyID == "" {
+	var partyID string
+	if input.PartyID != nil && *input.PartyID != "" {
+		partyID = *input.PartyID
+	} else {
 		partyID = info.PartyId
 	}
 
-	publicKey := input.PublicKey
-	if publicKey == "" {
+	var publicKey string
+	if input.PublicKey != nil && *input.PublicKey != "" {
+		publicKey = *input.PublicKey
+	} else {
 		publicKey = info.PublicKey
 	}
+
+	// Получаем signing public key для отображения
+	signingPubKey := client.GetSigningPublicKeyBase64()
 
 	node := &model.Node{
 		ID:        id,
@@ -57,7 +67,21 @@ func (r *mutationResolver) RegisterNode(ctx context.Context, input model.Registe
 
 	r.nodes[id] = node
 
-	log.Printf("Нода зарегистрирована: %s (party: %s, address: %s)", id, partyID, input.Address)
+	// Логируем с информацией о security
+	if signingPubKey != "" {
+		logger.Info("Нода зарегистрирована", map[string]interface{}{
+			"node_id":            id,
+			"party_id":           partyID,
+			"address":            input.Address,
+			"signing_key_prefix": signingPubKey[:16],
+		})
+	} else {
+		logger.Warn("Нода зарегистрирована без signing key", map[string]interface{}{
+			"node_id":  id,
+			"party_id": partyID,
+			"address":  input.Address,
+		})
+	}
 
 	return node, nil
 }
@@ -75,7 +99,16 @@ func (r *mutationResolver) DeleteNode(ctx context.Context, id string) (*model.No
 
 	// Удаляем из NodeManager по partyID
 	if err := r.NodeManager.RemoveNode(node.PartyID); err != nil {
-		log.Printf("Предупреждение: не удалось удалить ноду из NodeManager: %v", err)
+		logger.Warn("Не удалось удалить ноду из NodeManager", map[string]interface{}{
+			"node_id":  id,
+			"party_id": node.PartyID,
+			"error":    err.Error(),
+		})
+	} else {
+		logger.Info("Нода удалена", map[string]interface{}{
+			"node_id":  id,
+			"party_id": node.PartyID,
+		})
 	}
 
 	// Удаляем из локального хранилища
@@ -83,30 +116,6 @@ func (r *mutationResolver) DeleteNode(ctx context.Context, id string) (*model.No
 
 	node.Status = model.NodeStatusOffline
 	return node, nil
-}
-
-// CreateSession - резолвер для создания новой MPC сессии.
-func (r *mutationResolver) CreateSession(ctx context.Context, input model.CreateSessionInput) (*model.Session, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.sessionCounter++
-	id := fmt.Sprintf("session_%d", r.sessionCounter)
-
-	session := &model.Session{
-		ID:           id,
-		Type:         input.Type,
-		Status:       model.SessionStatusPending,
-		Participants: input.Participants,
-		Threshold:    input.Threshold,
-		CreatedAt:    time.Now().UTC().Format(time.RFC3339),
-	}
-
-	r.sessions[id] = session
-
-	log.Printf("Сессия создана: %s (type: %s, participants: %v)", id, input.Type, input.Participants)
-
-	return session, nil
 }
 
 // StartKeygen - резолвер для запуска распределённой генерации ключей (DKG).
@@ -143,14 +152,15 @@ func (r *mutationResolver) StartKeygen(ctx context.Context, input model.StartKey
 		curve = *input.Curve
 	}
 
-	// Генерируем ID сессии
-	r.mu.Lock()
-	r.sessionCounter++
-	sessionID := fmt.Sprintf("keygen_%d", r.sessionCounter)
-	r.mu.Unlock()
+	// SECURITY: Генерируем криптографически случайный ID сессии
+	sessionID := generateSecureSessionID("keygen")
 
-	log.Printf("Запуск keygen сессии %s: participants=%v, threshold=%d, curve=%s",
-		sessionID, participants, input.Threshold, curve)
+	logger.Info("Запуск keygen сессии", map[string]interface{}{
+		"session_id":   sessionID,
+		"participants": participants,
+		"threshold":    input.Threshold,
+		"curve":        curve,
+	})
 
 	// Получаем клиентов для всех участников
 	clients, err := r.NodeManager.GetNodesByPartyIDs(participants)
@@ -158,14 +168,15 @@ func (r *mutationResolver) StartKeygen(ctx context.Context, input model.StartKey
 		return nil, fmt.Errorf("не удалось получить ноды: %w", err)
 	}
 
-	// Формируем информацию о участниках
+	// Формируем информацию о участниках с signing public keys
 	parties := make([]*pb.PartyInfo, len(participants))
 	for i, partyID := range participants {
 		client, _ := r.NodeManager.GetNode(partyID)
 		parties[i] = &pb.PartyInfo{
-			PartyId:    partyID,
-			PartyIndex: int32(i),
-			Address:    client.GetAddress(),
+			PartyId:          partyID,
+			PartyIndex:       int32(i),
+			Address:          client.GetAddress(),
+			SigningPublicKey: client.GetSigningPublicKeyBase64(), // Ed25519 ключ для верификации
 		}
 	}
 
@@ -176,14 +187,19 @@ func (r *mutationResolver) StartKeygen(ctx context.Context, input model.StartKey
 		}
 	}
 
-	log.Printf("Keygen инициализирован на всех нодах, начинаем обмен сообщениями")
+	logger.Info("Keygen инициализирован, начинаем обмен сообщениями", map[string]interface{}{
+		"session_id": sessionID,
+	})
 
 	// Даём время нодам запустить keygen и сгенерировать начальные сообщения
-	time.Sleep(1 * time.Second)
+	initSleep := time.Duration(r.config.Session.InitializationSleepMs) * time.Millisecond
+	time.Sleep(initSleep)
 
 	// Выполняем раунды keygen с обменом сообщениями
-	maxIterations := 100
+	maxIterations := r.config.Session.MaxIterations
 	noMessageIterations := 0
+	iterationSleep := time.Duration(r.config.Session.IterationSleepMs) * time.Millisecond
+	noMessageTimeout := r.config.Session.NoMessageTimeout
 
 	// Очередь сообщений для рассылки
 	pendingMessages := make([]*pb.KeygenMessage, 0)
@@ -195,8 +211,12 @@ func (r *mutationResolver) StartKeygen(ctx context.Context, input model.StartKey
 		// Сначала собираем все сообщения со всех нод через GetKeygenResult
 		for _, client := range clients {
 			result, err := client.GetKeygenResult(ctx, sessionID)
-			fmt.Println("result", result, client.GetNodeID())
 			if err != nil {
+				logger.Error("Ошибка получения результата keygen", map[string]interface{}{
+					"session_id": sessionID,
+					"party_id":   client.GetPartyID(),
+					"error":      err.Error(),
+				})
 				return nil, fmt.Errorf("ошибка получения результата keygen от %s: %w", client.GetPartyID(), err)
 			}
 
@@ -209,7 +229,10 @@ func (r *mutationResolver) StartKeygen(ctx context.Context, input model.StartKey
 
 		// Проверяем завершение до отправки сообщений
 		if allCompleted {
-			log.Printf("Keygen завершён на итерации %d", iteration)
+			logger.Info("Keygen завершён", map[string]interface{}{
+				"session_id": sessionID,
+				"iteration":  iteration,
+			})
 			break
 		}
 
@@ -227,24 +250,32 @@ func (r *mutationResolver) StartKeygen(ctx context.Context, input model.StartKey
 			pendingMessages = append(pendingMessages, responseMessages...)
 		}
 
-		log.Printf("Итерация %d: отправлено=%d, получено=%d, allCompleted=%v",
-			iteration, totalMessages, len(pendingMessages), allCompleted)
+		logger.Debug("Keygen итерация", map[string]interface{}{
+			"session_id":     sessionID,
+			"iteration":      iteration,
+			"sent_messages":  totalMessages,
+			"recv_messages":  len(pendingMessages),
+			"all_completed":  allCompleted,
+		})
 
 		if totalMessages == 0 && len(pendingMessages) == 0 {
 			noMessageIterations++
-			// Если 30 итераций подряд без сообщений - что-то пошло не так
-			if noMessageIterations > 30 {
-				log.Printf("Предупреждение: слишком много итераций без сообщений")
+			// Если слишком много итераций подряд без сообщений - что-то пошло не так
+			if noMessageIterations > noMessageTimeout {
+				logger.Warn("Слишком много итераций без сообщений", map[string]interface{}{
+					"session_id":           sessionID,
+					"no_message_iterations": noMessageIterations,
+				})
 				break
 			}
 			// Небольшая пауза если нет сообщений
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(iterationSleep)
 		} else {
 			noMessageIterations = 0
 		}
 
 		// Пауза между итерациями для обработки сообщений
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(iterationSleep)
 	}
 
 	// Получаем финальный результат от первой ноды
@@ -261,8 +292,12 @@ func (r *mutationResolver) StartKeygen(ctx context.Context, input model.StartKey
 		return nil, fmt.Errorf("keygen не завершён успешно: %s", errMsg)
 	}
 
-	log.Printf("Keygen успешно завершён: publicKey=%s, address=%s",
-		finalResult.Result.PublicKey, finalResult.Result.Address)
+	logger.Info("Keygen успешно завершён", map[string]interface{}{
+		"session_id": sessionID,
+		"public_key": finalResult.Result.PublicKey,
+		"address":    finalResult.Result.Address,
+		"threshold":  finalResult.Result.Threshold,
+	})
 
 	return &model.KeygenResult{
 		SessionID:    sessionID,
@@ -270,6 +305,192 @@ func (r *mutationResolver) StartKeygen(ctx context.Context, input model.StartKey
 		Address:      finalResult.Result.Address,
 		Threshold:    finalResult.Result.Threshold,
 		TotalParties: finalResult.Result.TotalParties,
+	}, nil
+}
+
+// StartSigning - резолвер для запуска распределённого подписания (TSS).
+// Координирует signing между участвующими MPC нодами.
+func (r *mutationResolver) StartSigning(ctx context.Context, input model.StartSigningInput) (*model.SigningResult, error) {
+	// Определяем участников
+	var participants []string
+	if len(input.Participants) > 0 {
+		participants = input.Participants
+	} else {
+		// Используем все зарегистрированные ноды
+		r.mu.RLock()
+		for _, node := range r.nodes {
+			participants = append(participants, node.PartyID)
+		}
+		r.mu.RUnlock()
+	}
+
+	if len(participants) < 2 {
+		return nil, fmt.Errorf("требуется минимум 2 участника для signing, получено: %d", len(participants))
+	}
+
+	// Конвертируем сообщение в байты
+	var messageBytes []byte
+	if len(input.Message) > 2 && input.Message[:2] == "0x" {
+		// Hex-encoded message
+		var err error
+		messageBytes, err = hex.DecodeString(input.Message[2:])
+		if err != nil {
+			return nil, fmt.Errorf("неверный hex формат сообщения: %w", err)
+		}
+	} else {
+		// UTF-8 строка
+		messageBytes = []byte(input.Message)
+	}
+
+	// SECURITY: Генерируем криптографически случайный ID сессии
+	sessionID := generateSecureSessionID("signing")
+
+	logger.Info("Запуск signing сессии", map[string]interface{}{
+		"session_id":   sessionID,
+		"address":      input.Address,
+		"participants": participants,
+		"message_len":  len(messageBytes),
+	})
+
+	// Получаем клиентов для всех участников
+	clients, err := r.NodeManager.GetNodesByPartyIDs(participants)
+	if err != nil {
+		return nil, fmt.Errorf("не удалось получить ноды: %w", err)
+	}
+
+	// Формируем информацию о участниках
+	parties := make([]*pb.PartyInfo, len(participants))
+	for i, partyID := range participants {
+		client, _ := r.NodeManager.GetNode(partyID)
+		parties[i] = &pb.PartyInfo{
+			PartyId:          partyID,
+			PartyIndex:       int32(i),
+			Address:          client.GetAddress(),
+			SigningPublicKey: client.GetSigningPublicKeyBase64(),
+		}
+	}
+
+	// Инициализируем signing на всех нодах
+	for _, client := range clients {
+		if err := client.InitSigning(ctx, sessionID, input.Address, messageBytes, parties); err != nil {
+			return nil, fmt.Errorf("не удалось инициализировать signing на ноде %s: %w", client.GetPartyID(), err)
+		}
+	}
+
+	logger.Info("Signing инициализирован, начинаем обмен сообщениями", map[string]interface{}{
+		"session_id": sessionID,
+	})
+
+	// Даём время нодам запустить signing и сгенерировать начальные сообщения
+	initSleep := time.Duration(r.config.Session.InitializationSleepMs) * time.Millisecond
+	time.Sleep(initSleep)
+
+	// Выполняем раунды signing с обменом сообщениями
+	maxIterations := r.config.Session.MaxIterations
+	noMessageIterations := 0
+	iterationSleep := time.Duration(r.config.Session.IterationSleepMs) * time.Millisecond
+	noMessageTimeout := r.config.Session.NoMessageTimeout
+
+	// Очередь сообщений для рассылки
+	pendingMessages := make([]*pb.SigningMessage, 0)
+
+	for iteration := 0; iteration < maxIterations; iteration++ {
+		allCompleted := true
+		totalMessages := 0
+
+		// Собираем сообщения со всех нод через GetSigningResult
+		for _, client := range clients {
+			result, err := client.GetSigningResult(ctx, sessionID)
+			if err != nil {
+				logger.Error("Ошибка получения результата signing", map[string]interface{}{
+					"session_id": sessionID,
+					"party_id":   client.GetPartyID(),
+					"error":      err.Error(),
+				})
+				return nil, fmt.Errorf("ошибка получения результата signing от %s: %w", client.GetPartyID(), err)
+			}
+
+			if !result.Completed {
+				allCompleted = false
+			}
+
+			pendingMessages = append(pendingMessages, result.OutgoingMessages...)
+		}
+
+		// Проверяем завершение
+		if allCompleted {
+			logger.Info("Signing завершён", map[string]interface{}{
+				"session_id": sessionID,
+				"iteration":  iteration,
+			})
+			break
+		}
+
+		// Отправляем все накопленные сообщения
+		messagesToSend := pendingMessages
+		pendingMessages = make([]*pb.SigningMessage, 0)
+
+		for _, msg := range messagesToSend {
+			totalMessages++
+			// Отправляем сообщение и собираем ответные
+			responseMessages, err := r.broadcastSigningAndCollect(ctx, msg)
+			if err != nil {
+				return nil, fmt.Errorf("ошибка рассылки signing сообщения: %w", err)
+			}
+			pendingMessages = append(pendingMessages, responseMessages...)
+		}
+
+		logger.Debug("Signing итерация", map[string]interface{}{
+			"session_id":    sessionID,
+			"iteration":     iteration,
+			"sent_messages": totalMessages,
+			"recv_messages": len(pendingMessages),
+			"all_completed": allCompleted,
+		})
+
+		if totalMessages == 0 && len(pendingMessages) == 0 {
+			noMessageIterations++
+			if noMessageIterations > noMessageTimeout {
+				logger.Warn("Слишком много итераций без сообщений", map[string]interface{}{
+					"session_id":            sessionID,
+					"no_message_iterations": noMessageIterations,
+				})
+				break
+			}
+			time.Sleep(iterationSleep)
+		} else {
+			noMessageIterations = 0
+		}
+
+		time.Sleep(iterationSleep)
+	}
+
+	// Получаем финальный результат от первой ноды
+	finalResult, err := clients[0].GetSigningResult(ctx, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("не удалось получить финальный результат signing: %w", err)
+	}
+
+	if !finalResult.Completed || !finalResult.Success {
+		errMsg := "неизвестная ошибка"
+		if finalResult.ErrorMessage != "" {
+			errMsg = finalResult.ErrorMessage
+		}
+		return nil, fmt.Errorf("signing не завершён успешно: %s", errMsg)
+	}
+
+	logger.Info("Signing успешно завершён", map[string]interface{}{
+		"session_id": sessionID,
+		"signature":  finalResult.Result.Signature,
+		"address":    input.Address,
+	})
+
+	return &model.SigningResult{
+		SessionID: sessionID,
+		Signature: finalResult.Result.Signature,
+		R:         finalResult.Result.R,
+		S:         finalResult.Result.S,
+		V:         finalResult.Result.V,
 	}, nil
 }
 

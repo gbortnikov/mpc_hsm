@@ -56,10 +56,10 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		CreateSession func(childComplexity int, input model.CreateSessionInput) int
-		DeleteNode    func(childComplexity int, id string) int
-		RegisterNode  func(childComplexity int, input model.RegisterNodeInput) int
-		StartKeygen   func(childComplexity int, input model.StartKeygenInput) int
+		DeleteNode   func(childComplexity int, id string) int
+		RegisterNode func(childComplexity int, input model.RegisterNodeInput) int
+		StartKeygen  func(childComplexity int, input model.StartKeygenInput) int
+		StartSigning func(childComplexity int, input model.StartSigningInput) int
 	}
 
 	Node struct {
@@ -76,22 +76,20 @@ type ComplexityRoot struct {
 		Nodes func(childComplexity int) int
 	}
 
-	Session struct {
-		CompletedAt  func(childComplexity int) int
-		CreatedAt    func(childComplexity int) int
-		ID           func(childComplexity int) int
-		Participants func(childComplexity int) int
-		Status       func(childComplexity int) int
-		Threshold    func(childComplexity int) int
-		Type         func(childComplexity int) int
+	SigningResult struct {
+		R         func(childComplexity int) int
+		S         func(childComplexity int) int
+		SessionID func(childComplexity int) int
+		Signature func(childComplexity int) int
+		V         func(childComplexity int) int
 	}
 }
 
 type MutationResolver interface {
 	RegisterNode(ctx context.Context, input model.RegisterNodeInput) (*model.Node, error)
 	DeleteNode(ctx context.Context, id string) (*model.Node, error)
-	CreateSession(ctx context.Context, input model.CreateSessionInput) (*model.Session, error)
 	StartKeygen(ctx context.Context, input model.StartKeygenInput) (*model.KeygenResult, error)
+	StartSigning(ctx context.Context, input model.StartSigningInput) (*model.SigningResult, error)
 }
 type QueryResolver interface {
 	Nodes(ctx context.Context) ([]*model.Node, error)
@@ -148,17 +146,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.KeygenResult.TotalParties(childComplexity), true
 
-	case "Mutation.createSession":
-		if e.complexity.Mutation.CreateSession == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_createSession_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.CreateSession(childComplexity, args["input"].(model.CreateSessionInput)), true
 	case "Mutation.deleteNode":
 		if e.complexity.Mutation.DeleteNode == nil {
 			break
@@ -192,6 +179,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.StartKeygen(childComplexity, args["input"].(model.StartKeygenInput)), true
+	case "Mutation.startSigning":
+		if e.complexity.Mutation.StartSigning == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_startSigning_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.StartSigning(childComplexity, args["input"].(model.StartSigningInput)), true
 
 	case "Node.address":
 		if e.complexity.Node.Address == nil {
@@ -248,48 +246,36 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Query.Nodes(childComplexity), true
 
-	case "Session.completedAt":
-		if e.complexity.Session.CompletedAt == nil {
+	case "SigningResult.r":
+		if e.complexity.SigningResult.R == nil {
 			break
 		}
 
-		return e.complexity.Session.CompletedAt(childComplexity), true
-	case "Session.createdAt":
-		if e.complexity.Session.CreatedAt == nil {
+		return e.complexity.SigningResult.R(childComplexity), true
+	case "SigningResult.s":
+		if e.complexity.SigningResult.S == nil {
 			break
 		}
 
-		return e.complexity.Session.CreatedAt(childComplexity), true
-	case "Session.id":
-		if e.complexity.Session.ID == nil {
+		return e.complexity.SigningResult.S(childComplexity), true
+	case "SigningResult.sessionId":
+		if e.complexity.SigningResult.SessionID == nil {
 			break
 		}
 
-		return e.complexity.Session.ID(childComplexity), true
-	case "Session.participants":
-		if e.complexity.Session.Participants == nil {
+		return e.complexity.SigningResult.SessionID(childComplexity), true
+	case "SigningResult.signature":
+		if e.complexity.SigningResult.Signature == nil {
 			break
 		}
 
-		return e.complexity.Session.Participants(childComplexity), true
-	case "Session.status":
-		if e.complexity.Session.Status == nil {
+		return e.complexity.SigningResult.Signature(childComplexity), true
+	case "SigningResult.v":
+		if e.complexity.SigningResult.V == nil {
 			break
 		}
 
-		return e.complexity.Session.Status(childComplexity), true
-	case "Session.threshold":
-		if e.complexity.Session.Threshold == nil {
-			break
-		}
-
-		return e.complexity.Session.Threshold(childComplexity), true
-	case "Session.type":
-		if e.complexity.Session.Type == nil {
-			break
-		}
-
-		return e.complexity.Session.Type(childComplexity), true
+		return e.complexity.SigningResult.V(childComplexity), true
 
 	}
 	return 0, false
@@ -299,9 +285,9 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	opCtx := graphql.GetOperationContext(ctx)
 	ec := executionContext{opCtx, e, 0, 0, make(chan graphql.DeferredResult)}
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
-		ec.unmarshalInputCreateSessionInput,
 		ec.unmarshalInputRegisterNodeInput,
 		ec.unmarshalInputStartKeygenInput,
+		ec.unmarshalInputStartSigningInput,
 	)
 	first := true
 
@@ -418,17 +404,6 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
 // region    ***************************** args.gotpl *****************************
 
-func (ec *executionContext) field_Mutation_createSession_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreateSessionInput2githubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐCreateSessionInput)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-
 func (ec *executionContext) field_Mutation_deleteNode_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -455,6 +430,17 @@ func (ec *executionContext) field_Mutation_startKeygen_args(ctx context.Context,
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNStartKeygenInput2githubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐStartKeygenInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_startSigning_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNStartSigningInput2githubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐStartSigningInput)
 	if err != nil {
 		return nil, err
 	}
@@ -791,63 +777,6 @@ func (ec *executionContext) fieldContext_Mutation_deleteNode(ctx context.Context
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_createSession(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Mutation_createSession,
-		func(ctx context.Context) (any, error) {
-			fc := graphql.GetFieldContext(ctx)
-			return ec.resolvers.Mutation().CreateSession(ctx, fc.Args["input"].(model.CreateSessionInput))
-		},
-		nil,
-		ec.marshalNSession2ᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSession,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Mutation_createSession(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Session_id(ctx, field)
-			case "type":
-				return ec.fieldContext_Session_type(ctx, field)
-			case "status":
-				return ec.fieldContext_Session_status(ctx, field)
-			case "participants":
-				return ec.fieldContext_Session_participants(ctx, field)
-			case "threshold":
-				return ec.fieldContext_Session_threshold(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_Session_createdAt(ctx, field)
-			case "completedAt":
-				return ec.fieldContext_Session_completedAt(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Session", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_createSession_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Mutation_startKeygen(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -895,6 +824,59 @@ func (ec *executionContext) fieldContext_Mutation_startKeygen(ctx context.Contex
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_startKeygen_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_startSigning(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Mutation_startSigning,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.resolvers.Mutation().StartSigning(ctx, fc.Args["input"].(model.StartSigningInput))
+		},
+		nil,
+		ec.marshalNSigningResult2ᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSigningResult,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Mutation_startSigning(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "sessionId":
+				return ec.fieldContext_SigningResult_sessionId(ctx, field)
+			case "signature":
+				return ec.fieldContext_SigningResult_signature(ctx, field)
+			case "r":
+				return ec.fieldContext_SigningResult_r(ctx, field)
+			case "s":
+				return ec.fieldContext_SigningResult_s(ctx, field)
+			case "v":
+				return ec.fieldContext_SigningResult_v(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SigningResult", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_startSigning_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -1281,14 +1263,14 @@ func (ec *executionContext) fieldContext_Query___schema(_ context.Context, field
 	return fc, nil
 }
 
-func (ec *executionContext) _Session_id(ctx context.Context, field graphql.CollectedField, obj *model.Session) (ret graphql.Marshaler) {
+func (ec *executionContext) _SigningResult_sessionId(ctx context.Context, field graphql.CollectedField, obj *model.SigningResult) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Session_id,
+		ec.fieldContext_SigningResult_sessionId,
 		func(ctx context.Context) (any, error) {
-			return obj.ID, nil
+			return obj.SessionID, nil
 		},
 		nil,
 		ec.marshalNID2string,
@@ -1297,9 +1279,9 @@ func (ec *executionContext) _Session_id(ctx context.Context, field graphql.Colle
 	)
 }
 
-func (ec *executionContext) fieldContext_Session_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_SigningResult_sessionId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "Session",
+		Object:     "SigningResult",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -1310,130 +1292,14 @@ func (ec *executionContext) fieldContext_Session_id(_ context.Context, field gra
 	return fc, nil
 }
 
-func (ec *executionContext) _Session_type(ctx context.Context, field graphql.CollectedField, obj *model.Session) (ret graphql.Marshaler) {
+func (ec *executionContext) _SigningResult_signature(ctx context.Context, field graphql.CollectedField, obj *model.SigningResult) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Session_type,
+		ec.fieldContext_SigningResult_signature,
 		func(ctx context.Context) (any, error) {
-			return obj.Type, nil
-		},
-		nil,
-		ec.marshalNSessionType2githubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSessionType,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Session_type(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Session",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type SessionType does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Session_status(ctx context.Context, field graphql.CollectedField, obj *model.Session) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Session_status,
-		func(ctx context.Context) (any, error) {
-			return obj.Status, nil
-		},
-		nil,
-		ec.marshalNSessionStatus2githubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSessionStatus,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Session_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Session",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type SessionStatus does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Session_participants(ctx context.Context, field graphql.CollectedField, obj *model.Session) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Session_participants,
-		func(ctx context.Context) (any, error) {
-			return obj.Participants, nil
-		},
-		nil,
-		ec.marshalNString2ᚕstringᚄ,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Session_participants(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Session",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Session_threshold(ctx context.Context, field graphql.CollectedField, obj *model.Session) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Session_threshold,
-		func(ctx context.Context) (any, error) {
-			return obj.Threshold, nil
-		},
-		nil,
-		ec.marshalNInt2int32,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Session_threshold(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Session",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Session_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Session) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Session_createdAt,
-		func(ctx context.Context) (any, error) {
-			return obj.CreatedAt, nil
+			return obj.Signature, nil
 		},
 		nil,
 		ec.marshalNString2string,
@@ -1442,9 +1308,9 @@ func (ec *executionContext) _Session_createdAt(ctx context.Context, field graphq
 	)
 }
 
-func (ec *executionContext) fieldContext_Session_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_SigningResult_signature(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "Session",
+		Object:     "SigningResult",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -1455,30 +1321,88 @@ func (ec *executionContext) fieldContext_Session_createdAt(_ context.Context, fi
 	return fc, nil
 }
 
-func (ec *executionContext) _Session_completedAt(ctx context.Context, field graphql.CollectedField, obj *model.Session) (ret graphql.Marshaler) {
+func (ec *executionContext) _SigningResult_r(ctx context.Context, field graphql.CollectedField, obj *model.SigningResult) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
-		ec.fieldContext_Session_completedAt,
+		ec.fieldContext_SigningResult_r,
 		func(ctx context.Context) (any, error) {
-			return obj.CompletedAt, nil
+			return obj.R, nil
 		},
 		nil,
-		ec.marshalOString2ᚖstring,
+		ec.marshalNString2string,
 		true,
-		false,
+		true,
 	)
 }
 
-func (ec *executionContext) fieldContext_Session_completedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_SigningResult_r(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "Session",
+		Object:     "SigningResult",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SigningResult_s(ctx context.Context, field graphql.CollectedField, obj *model.SigningResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SigningResult_s,
+		func(ctx context.Context) (any, error) {
+			return obj.S, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SigningResult_s(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SigningResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SigningResult_v(ctx context.Context, field graphql.CollectedField, obj *model.SigningResult) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SigningResult_v,
+		func(ctx context.Context) (any, error) {
+			return obj.V, nil
+		},
+		nil,
+		ec.marshalNInt2int32,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SigningResult_v(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SigningResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -2930,47 +2854,6 @@ func (ec *executionContext) fieldContext___Type_isOneOf(_ context.Context, field
 
 // region    **************************** input.gotpl *****************************
 
-func (ec *executionContext) unmarshalInputCreateSessionInput(ctx context.Context, obj any) (model.CreateSessionInput, error) {
-	var it model.CreateSessionInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"type", "participants", "threshold"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "type":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("type"))
-			data, err := ec.unmarshalNSessionType2githubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSessionType(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Type = data
-		case "participants":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("participants"))
-			data, err := ec.unmarshalNString2ᚕstringᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Participants = data
-		case "threshold":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("threshold"))
-			data, err := ec.unmarshalNInt2int32(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Threshold = data
-		}
-	}
-
-	return it, nil
-}
-
 func (ec *executionContext) unmarshalInputRegisterNodeInput(ctx context.Context, obj any) (model.RegisterNodeInput, error) {
 	var it model.RegisterNodeInput
 	asMap := map[string]any{}
@@ -2978,20 +2861,13 @@ func (ec *executionContext) unmarshalInputRegisterNodeInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"partyId", "address", "publicKey"}
+	fieldsInOrder := [...]string{"address", "partyId", "publicKey"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
-		case "partyId":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("partyId"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.PartyID = data
 		case "address":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("address"))
 			data, err := ec.unmarshalNString2string(ctx, v)
@@ -2999,9 +2875,16 @@ func (ec *executionContext) unmarshalInputRegisterNodeInput(ctx context.Context,
 				return it, err
 			}
 			it.Address = data
+		case "partyId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("partyId"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PartyID = data
 		case "publicKey":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("publicKey"))
-			data, err := ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -3047,6 +2930,47 @@ func (ec *executionContext) unmarshalInputStartKeygenInput(ctx context.Context, 
 				return it, err
 			}
 			it.Curve = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputStartSigningInput(ctx context.Context, obj any) (model.StartSigningInput, error) {
+	var it model.StartSigningInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"address", "message", "participants"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "address":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("address"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Address = data
+		case "message":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("message"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Message = data
+		case "participants":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("participants"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Participants = data
 		}
 	}
 
@@ -3150,16 +3074,16 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_deleteNode(ctx, field)
 			})
-		case "createSession":
+		case "startKeygen":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_createSession(ctx, field)
+				return ec._Mutation_startKeygen(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "startKeygen":
+		case "startSigning":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_startKeygen(ctx, field)
+				return ec._Mutation_startSigning(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -3342,49 +3266,42 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 	return out
 }
 
-var sessionImplementors = []string{"Session"}
+var signingResultImplementors = []string{"SigningResult"}
 
-func (ec *executionContext) _Session(ctx context.Context, sel ast.SelectionSet, obj *model.Session) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, sessionImplementors)
+func (ec *executionContext) _SigningResult(ctx context.Context, sel ast.SelectionSet, obj *model.SigningResult) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, signingResultImplementors)
 
 	out := graphql.NewFieldSet(fields)
 	deferred := make(map[string]*graphql.FieldSet)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
-			out.Values[i] = graphql.MarshalString("Session")
-		case "id":
-			out.Values[i] = ec._Session_id(ctx, field, obj)
+			out.Values[i] = graphql.MarshalString("SigningResult")
+		case "sessionId":
+			out.Values[i] = ec._SigningResult_sessionId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "type":
-			out.Values[i] = ec._Session_type(ctx, field, obj)
+		case "signature":
+			out.Values[i] = ec._SigningResult_signature(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "status":
-			out.Values[i] = ec._Session_status(ctx, field, obj)
+		case "r":
+			out.Values[i] = ec._SigningResult_r(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "participants":
-			out.Values[i] = ec._Session_participants(ctx, field, obj)
+		case "s":
+			out.Values[i] = ec._SigningResult_s(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "threshold":
-			out.Values[i] = ec._Session_threshold(ctx, field, obj)
+		case "v":
+			out.Values[i] = ec._SigningResult_v(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "createdAt":
-			out.Values[i] = ec._Session_createdAt(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "completedAt":
-			out.Values[i] = ec._Session_completedAt(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -3759,11 +3676,6 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 	return res
 }
 
-func (ec *executionContext) unmarshalNCreateSessionInput2githubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐCreateSessionInput(ctx context.Context, v any) (model.CreateSessionInput, error) {
-	res, err := ec.unmarshalInputCreateSessionInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
 func (ec *executionContext) unmarshalNID2string(ctx context.Context, v any) (string, error) {
 	res, err := graphql.UnmarshalID(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -3883,42 +3795,27 @@ func (ec *executionContext) unmarshalNRegisterNodeInput2githubᚗcomᚋmpc_hsm�
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNSession2githubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSession(ctx context.Context, sel ast.SelectionSet, v model.Session) graphql.Marshaler {
-	return ec._Session(ctx, sel, &v)
+func (ec *executionContext) marshalNSigningResult2githubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSigningResult(ctx context.Context, sel ast.SelectionSet, v model.SigningResult) graphql.Marshaler {
+	return ec._SigningResult(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNSession2ᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSession(ctx context.Context, sel ast.SelectionSet, v *model.Session) graphql.Marshaler {
+func (ec *executionContext) marshalNSigningResult2ᚖgithubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSigningResult(ctx context.Context, sel ast.SelectionSet, v *model.SigningResult) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
 		}
 		return graphql.Null
 	}
-	return ec._Session(ctx, sel, v)
-}
-
-func (ec *executionContext) unmarshalNSessionStatus2githubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSessionStatus(ctx context.Context, v any) (model.SessionStatus, error) {
-	var res model.SessionStatus
-	err := res.UnmarshalGQL(v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalNSessionStatus2githubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSessionStatus(ctx context.Context, sel ast.SelectionSet, v model.SessionStatus) graphql.Marshaler {
-	return v
-}
-
-func (ec *executionContext) unmarshalNSessionType2githubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSessionType(ctx context.Context, v any) (model.SessionType, error) {
-	var res model.SessionType
-	err := res.UnmarshalGQL(v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalNSessionType2githubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐSessionType(ctx context.Context, sel ast.SelectionSet, v model.SessionType) graphql.Marshaler {
-	return v
+	return ec._SigningResult(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNStartKeygenInput2githubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐStartKeygenInput(ctx context.Context, v any) (model.StartKeygenInput, error) {
 	res, err := ec.unmarshalInputStartKeygenInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNStartSigningInput2githubᚗcomᚋmpc_hsmᚋorchestratorᚋgraphᚋmodelᚐStartSigningInput(ctx context.Context, v any) (model.StartSigningInput, error) {
+	res, err := ec.unmarshalInputStartSigningInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -3936,36 +3833,6 @@ func (ec *executionContext) marshalNString2string(ctx context.Context, sel ast.S
 		}
 	}
 	return res
-}
-
-func (ec *executionContext) unmarshalNString2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {
-	var vSlice []any
-	vSlice = graphql.CoerceList(v)
-	var err error
-	res := make([]string, len(vSlice))
-	for i := range vSlice {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNString2string(ctx, vSlice[i])
-		if err != nil {
-			return nil, err
-		}
-	}
-	return res, nil
-}
-
-func (ec *executionContext) marshalNString2ᚕstringᚄ(ctx context.Context, sel ast.SelectionSet, v []string) graphql.Marshaler {
-	ret := make(graphql.Array, len(v))
-	for i := range v {
-		ret[i] = ec.marshalNString2string(ctx, sel, v[i])
-	}
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
 }
 
 func (ec *executionContext) marshalN__Directive2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐDirective(ctx context.Context, sel ast.SelectionSet, v introspection.Directive) graphql.Marshaler {

@@ -7,9 +7,11 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/bnb-chain/tss-lib/v2/ecdsa/keygen"
+	"github.com/mpc_hsm/node/db"
 	pb "github.com/mpc_hsm/node/proto"
+	"github.com/mpc_hsm/node/security"
 	"github.com/mpc_hsm/node/tss"
+	"google.golang.org/protobuf/proto"
 )
 
 // MPCNodeServer реализует gRPC сервис MPC ноды
@@ -31,16 +33,23 @@ type MPCNodeServer struct {
 	signingSessions map[string]*tss.SigningSession
 	signingMu       sync.RWMutex
 
-	// Хранилище сгенерированных ключей (keyID -> savedData)
-	savedKeys map[string]*keygen.LocalPartySaveData
-	keysMu    sync.RWMutex
-
 	// Поддерживаемые кривые
 	supportedCurves []string
+
+	// Security компоненты
+	identity      *security.NodeIdentity
+	signer        *security.MessageSigner
+	verifier      *security.MessageVerifier
+	whitelist     *security.PartyWhitelist
+	authenticator *security.MessageAuthenticator
+	replayGuard   *security.ReplayGuard
+
+	// Database (обязательно)
+	shareStore *db.ShareStore
 }
 
-// NewMPCNodeServer создаёт новый gRPC сервер
-func NewMPCNodeServer(nodeID, partyID string) *MPCNodeServer {
+// NewMPCNodeServer создаёт новый gRPC сервер с обязательным ShareStore
+func NewMPCNodeServer(nodeID, partyID string, shareStore *db.ShareStore) *MPCNodeServer {
 	return &MPCNodeServer{
 		nodeID:          nodeID,
 		partyID:         partyID,
@@ -48,8 +57,39 @@ func NewMPCNodeServer(nodeID, partyID string) *MPCNodeServer {
 		version:         "1.0.0",
 		keygenSessions:  make(map[string]*tss.KeygenSession),
 		signingSessions: make(map[string]*tss.SigningSession),
-		savedKeys:       make(map[string]*keygen.LocalPartySaveData),
 		supportedCurves: []string{"secp256k1"},
+		shareStore:      shareStore,
+	}
+}
+
+// NewMPCNodeServerWithSecurity создаёт gRPC сервер с компонентами безопасности
+func NewMPCNodeServerWithSecurity(
+	nodeID, partyID string,
+	identity *security.NodeIdentity,
+	signer *security.MessageSigner,
+	verifier *security.MessageVerifier,
+	whitelist *security.PartyWhitelist,
+	replayGuard *security.ReplayGuard,
+	shareStore *db.ShareStore,
+) *MPCNodeServer {
+	// Создаём аутентификатор для проверки сообщений
+	authenticator := security.NewMessageAuthenticator(identity, whitelist, replayGuard)
+
+	return &MPCNodeServer{
+		nodeID:          nodeID,
+		partyID:         partyID,
+		status:          pb.NodeStatus_NODE_STATUS_ONLINE,
+		version:         "1.0.0",
+		keygenSessions:  make(map[string]*tss.KeygenSession),
+		signingSessions: make(map[string]*tss.SigningSession),
+		supportedCurves: []string{"secp256k1"},
+		identity:        identity,
+		signer:          signer,
+		verifier:        verifier,
+		whitelist:       whitelist,
+		authenticator:   authenticator,
+		replayGuard:     replayGuard,
+		shareStore:      shareStore,
 	}
 }
 
@@ -66,23 +106,48 @@ func (s *MPCNodeServer) HealthCheck(ctx context.Context, req *pb.HealthCheckRequ
 // GetNodeInfo возвращает информацию о ноде
 func (s *MPCNodeServer) GetNodeInfo(ctx context.Context, req *pb.GetNodeInfoRequest) (*pb.GetNodeInfoResponse, error) {
 	slog.Debug("GetNodeInfo called", "node_id", s.nodeID, "party_id", s.partyID)
+
+	var signingPublicKey string
+	if s.identity != nil {
+		signingPublicKey = s.identity.PublicKeyBase64()
+	}
+
 	return &pb.GetNodeInfoResponse{
-		NodeId:          s.nodeID,
-		PartyId:         s.partyID,
-		PublicKey:       s.publicKey,
-		Address:         s.address,
-		Status:          s.status,
-		SupportedCurves: s.supportedCurves,
+		NodeId:           s.nodeID,
+		PartyId:          s.partyID,
+		PublicKey:        s.publicKey,
+		Address:          s.address,
+		Status:           s.status,
+		SupportedCurves:  s.supportedCurves,
+		SigningPublicKey: signingPublicKey,
 	}, nil
 }
 
 // InitKeygen инициализирует сессию генерации ключей
+// SECURITY: Проверяет whitelist и регистрирует публичные ключи участников
 func (s *MPCNodeServer) InitKeygen(ctx context.Context, req *pb.InitKeygenRequest) (*pb.InitKeygenResponse, error) {
 	slog.Info("InitKeygen called",
 		"session_id", req.SessionId,
 		"threshold", req.Threshold,
 		"parties_count", len(req.Parties),
 	)
+
+	// SECURITY: Регистрируем публичные ключи всех участников в whitelist
+	if s.whitelist != nil {
+		for _, p := range req.Parties {
+			if p.SigningPublicKey != "" {
+				if err := s.whitelist.AddFromBase64(p.PartyId, p.SigningPublicKey); err != nil {
+					slog.Warn("InitKeygen: failed to add party to whitelist",
+						"party_id", p.PartyId,
+						"error", err,
+					)
+				} else {
+					slog.Debug("InitKeygen: added party to whitelist", "party_id", p.PartyId)
+				}
+			}
+		}
+		slog.Info("InitKeygen: whitelist updated", "parties_count", s.whitelist.Count())
+	}
 
 	s.keygenMu.Lock()
 	defer s.keygenMu.Unlock()
@@ -168,6 +233,7 @@ func (s *MPCNodeServer) findPartyIndex(parties []*pb.PartyInfo) int {
 }
 
 // ProcessKeygenMessage обрабатывает входящее сообщение keygen
+// SECURITY: Проверяет подпись отправителя перед обработкой
 func (s *MPCNodeServer) ProcessKeygenMessage(ctx context.Context, req *pb.KeygenMessage) (*pb.KeygenMessageResponse, error) {
 	slog.Debug("ProcessKeygenMessage called",
 		"session_id", req.SessionId,
@@ -175,6 +241,30 @@ func (s *MPCNodeServer) ProcessKeygenMessage(ctx context.Context, req *pb.Keygen
 		"round", req.Round,
 		"is_broadcast", req.IsBroadcast,
 	)
+
+	// SECURITY: Проверяем подпись сообщения
+	if s.authenticator != nil {
+		msgData := &security.KeygenMessageData{
+			SessionID:   req.SessionId,
+			FromParty:   req.FromParty,
+			Round:       req.Round,
+			Payload:     req.Payload,
+			IsBroadcast: req.IsBroadcast,
+		}
+
+		if err := s.authenticator.VerifyKeygenMessage(msgData, req.Signature, req.Timestamp, req.Nonce); err != nil {
+			slog.Warn("ProcessKeygenMessage: signature verification failed",
+				"session_id", req.SessionId,
+				"from_party", req.FromParty,
+				"error", err,
+			)
+			return &pb.KeygenMessageResponse{
+				Success:      false,
+				ErrorMessage: fmt.Sprintf("signature verification failed: %v", err),
+			}, nil
+		}
+		slog.Debug("ProcessKeygenMessage: signature verified", "from_party", req.FromParty)
+	}
 
 	s.keygenMu.RLock()
 	session, exists := s.keygenSessions[req.SessionId]
@@ -202,10 +292,10 @@ func (s *MPCNodeServer) ProcessKeygenMessage(ctx context.Context, req *pb.Keygen
 		}, nil
 	}
 
-	// Конвертируем исходящие сообщения
+	// Конвертируем и подписываем исходящие сообщения
 	pbMessages := make([]*pb.KeygenMessage, len(outgoing))
 	for i, msg := range outgoing {
-		pbMessages[i] = &pb.KeygenMessage{
+		pbMsg := &pb.KeygenMessage{
 			SessionId:   req.SessionId,
 			FromParty:   msg.FromParty,
 			ToParties:   msg.ToParties,
@@ -213,6 +303,25 @@ func (s *MPCNodeServer) ProcessKeygenMessage(ctx context.Context, req *pb.Keygen
 			Payload:     msg.Payload,
 			IsBroadcast: msg.IsBroadcast,
 		}
+
+		// SECURITY: Подписываем исходящие сообщения
+		if s.authenticator != nil {
+			msgData := &security.KeygenMessageData{
+				SessionID:   pbMsg.SessionId,
+				FromParty:   pbMsg.FromParty,
+				Round:       pbMsg.Round,
+				Payload:     pbMsg.Payload,
+				IsBroadcast: pbMsg.IsBroadcast,
+			}
+			sig, ts, nonce, err := s.authenticator.SignKeygenMessage(msgData)
+			if err == nil {
+				pbMsg.Signature = sig
+				pbMsg.Timestamp = ts
+				pbMsg.Nonce = nonce
+			}
+		}
+
+		pbMessages[i] = pbMsg
 	}
 
 	return &pb.KeygenMessageResponse{
@@ -247,7 +356,7 @@ func (s *MPCNodeServer) GetKeygenResult(ctx context.Context, req *pb.GetKeygenRe
 		}
 		pbMessages := make([]*pb.KeygenMessage, len(outgoing))
 		for i, msg := range outgoing {
-			pbMessages[i] = &pb.KeygenMessage{
+			pbMsg := &pb.KeygenMessage{
 				SessionId:   req.SessionId,
 				FromParty:   msg.FromParty,
 				ToParties:   msg.ToParties,
@@ -255,6 +364,25 @@ func (s *MPCNodeServer) GetKeygenResult(ctx context.Context, req *pb.GetKeygenRe
 				Payload:     msg.Payload,
 				IsBroadcast: msg.IsBroadcast,
 			}
+
+			// SECURITY: Подписываем исходящие сообщения
+			if s.authenticator != nil {
+				msgData := &security.KeygenMessageData{
+					SessionID:   pbMsg.SessionId,
+					FromParty:   pbMsg.FromParty,
+					Round:       pbMsg.Round,
+					Payload:     pbMsg.Payload,
+					IsBroadcast: pbMsg.IsBroadcast,
+				}
+				sig, ts, nonce, err := s.authenticator.SignKeygenMessage(msgData)
+				if err == nil {
+					pbMsg.Signature = sig
+					pbMsg.Timestamp = ts
+					pbMsg.Nonce = nonce
+				}
+			}
+
+			pbMessages[i] = pbMsg
 		}
 		return &pb.GetKeygenResultResponse{
 			Completed:        false,
@@ -272,10 +400,39 @@ func (s *MPCNodeServer) GetKeygenResult(ctx context.Context, req *pb.GetKeygenRe
 		}, nil
 	}
 
-	// Сохраняем ключ
-	s.keysMu.Lock()
-	s.savedKeys[req.SessionId] = session.GetSavedData()
-	s.keysMu.Unlock()
+	// Проверяем, не сохранён ли share уже
+	if !session.IsSaved() {
+		savedData := session.GetSavedData()
+
+		// Сохраняем share в базу данных
+		_, err = s.shareStore.SaveShare(ctx, db.SaveShareParams{
+			SessionID:    req.SessionId,
+			PartyID:      s.partyID,
+			PublicKey:    result.PublicKey,
+			Address:      result.Address,
+			Threshold:    result.Threshold,
+			TotalParties: result.TotalParties,
+			PartyIndex:   result.PartyIndex,
+			Curve:        "secp256k1",
+			SaveData:     savedData,
+		})
+		if err != nil {
+			slog.Error("GetKeygenResult: failed to save share to database",
+				"session_id", req.SessionId,
+				"error", err,
+			)
+			return &pb.GetKeygenResultResponse{
+				Completed:    true,
+				Success:      false,
+				ErrorMessage: fmt.Sprintf("failed to save share: %v", err),
+			}, nil
+		}
+		session.MarkSaved()
+		slog.Info("GetKeygenResult: share saved to database",
+			"session_id", req.SessionId,
+			"address", result.Address,
+		)
+	}
 
 	return &pb.GetKeygenResultResponse{
 		Completed: true,
@@ -305,18 +462,21 @@ func (s *MPCNodeServer) InitSigning(ctx context.Context, req *pb.InitSigningRequ
 		}, nil
 	}
 
-	// Получаем сохранённый ключ
-	s.keysMu.RLock()
-	keyData, exists := s.savedKeys[req.KeyId]
-	s.keysMu.RUnlock()
-
-	if !exists {
+	// Загружаем ключ из базы данных по адресу
+	// KeyId содержит Ethereum-адрес кошелька
+	keyData, err := s.shareStore.LoadShareDataByAddress(ctx, req.KeyId)
+	if err != nil {
+		slog.Error("InitSigning: failed to load share from database",
+			"address", req.KeyId,
+			"error", err,
+		)
 		return &pb.InitSigningResponse{
 			Success:      false,
-			ErrorMessage: "key not found",
+			ErrorMessage: fmt.Sprintf("key not found for address %s: %v", req.KeyId, err),
 			SessionId:    req.SessionId,
 		}, nil
 	}
+	slog.Info("InitSigning: loaded share from database", "address", req.KeyId)
 
 	// Создаём сессию подписания
 	session, err := tss.NewSigningSession(req.SessionId, keyData, req.MessageToSign)
@@ -365,7 +525,39 @@ func (s *MPCNodeServer) InitSigning(ctx context.Context, req *pb.InitSigningRequ
 }
 
 // ProcessSigningMessage обрабатывает сообщение подписания
+// SECURITY: Проверяет подпись отправителя перед обработкой
 func (s *MPCNodeServer) ProcessSigningMessage(ctx context.Context, req *pb.SigningMessage) (*pb.SigningMessageResponse, error) {
+	slog.Debug("ProcessSigningMessage called",
+		"session_id", req.SessionId,
+		"from_party", req.FromParty,
+		"round", req.Round,
+		"is_broadcast", req.IsBroadcast,
+	)
+
+	// SECURITY: Проверяем подпись сообщения
+	if s.authenticator != nil {
+		msgData := &security.SigningMessageData{
+			SessionID:   req.SessionId,
+			FromParty:   req.FromParty,
+			Round:       req.Round,
+			Payload:     req.Payload,
+			IsBroadcast: req.IsBroadcast,
+		}
+
+		if err := s.authenticator.VerifySigningMessage(msgData, req.Signature, req.Timestamp, req.Nonce); err != nil {
+			slog.Warn("ProcessSigningMessage: signature verification failed",
+				"session_id", req.SessionId,
+				"from_party", req.FromParty,
+				"error", err,
+			)
+			return &pb.SigningMessageResponse{
+				Success:      false,
+				ErrorMessage: fmt.Sprintf("signature verification failed: %v", err),
+			}, nil
+		}
+		slog.Debug("ProcessSigningMessage: signature verified", "from_party", req.FromParty)
+	}
+
 	s.signingMu.RLock()
 	session, exists := s.signingSessions[req.SessionId]
 	s.signingMu.RUnlock()
@@ -379,15 +571,21 @@ func (s *MPCNodeServer) ProcessSigningMessage(ctx context.Context, req *pb.Signi
 
 	outgoing, err := session.ProcessMessage(req.FromParty, int(req.Round), req.Payload, req.IsBroadcast)
 	if err != nil {
+		slog.Error("ProcessSigningMessage: failed to process message",
+			"session_id", req.SessionId,
+			"from_party", req.FromParty,
+			"error", err,
+		)
 		return &pb.SigningMessageResponse{
 			Success:      false,
 			ErrorMessage: err.Error(),
 		}, nil
 	}
 
+	// Конвертируем и подписываем исходящие сообщения
 	pbMessages := make([]*pb.SigningMessage, len(outgoing))
 	for i, msg := range outgoing {
-		pbMessages[i] = &pb.SigningMessage{
+		pbMsg := &pb.SigningMessage{
 			SessionId:   req.SessionId,
 			FromParty:   msg.FromParty,
 			ToParties:   msg.ToParties,
@@ -395,6 +593,25 @@ func (s *MPCNodeServer) ProcessSigningMessage(ctx context.Context, req *pb.Signi
 			Payload:     msg.Payload,
 			IsBroadcast: msg.IsBroadcast,
 		}
+
+		// SECURITY: Подписываем исходящие сообщения
+		if s.authenticator != nil {
+			msgData := &security.SigningMessageData{
+				SessionID:   pbMsg.SessionId,
+				FromParty:   pbMsg.FromParty,
+				Round:       pbMsg.Round,
+				Payload:     pbMsg.Payload,
+				IsBroadcast: pbMsg.IsBroadcast,
+			}
+			sig, ts, nonce, err := s.authenticator.SignSigningMessage(msgData)
+			if err == nil {
+				pbMsg.Signature = sig
+				pbMsg.Timestamp = ts
+				pbMsg.Nonce = nonce
+			}
+		}
+
+		pbMessages[i] = pbMsg
 	}
 
 	return &pb.SigningMessageResponse{
@@ -418,9 +635,49 @@ func (s *MPCNodeServer) GetSigningResult(ctx context.Context, req *pb.GetSigning
 	}
 
 	if !session.IsCompleted() {
+		// Получаем и возвращаем исходящие сообщения
+		outgoing := session.GetOutgoingMessages()
+		if len(outgoing) > 0 {
+			slog.Info("GetSigningResult: returning outgoing messages",
+				"session_id", req.SessionId,
+				"party_id", s.partyID,
+				"message_count", len(outgoing),
+			)
+		}
+		pbMessages := make([]*pb.SigningMessage, len(outgoing))
+		for i, msg := range outgoing {
+			pbMsg := &pb.SigningMessage{
+				SessionId:   req.SessionId,
+				FromParty:   msg.FromParty,
+				ToParties:   msg.ToParties,
+				Round:       0,
+				Payload:     msg.Payload,
+				IsBroadcast: msg.IsBroadcast,
+			}
+
+			// SECURITY: Подписываем исходящие сообщения
+			if s.authenticator != nil {
+				msgData := &security.SigningMessageData{
+					SessionID:   pbMsg.SessionId,
+					FromParty:   pbMsg.FromParty,
+					Round:       pbMsg.Round,
+					Payload:     pbMsg.Payload,
+					IsBroadcast: pbMsg.IsBroadcast,
+				}
+				sig, ts, nonce, err := s.authenticator.SignSigningMessage(msgData)
+				if err == nil {
+					pbMsg.Signature = sig
+					pbMsg.Timestamp = ts
+					pbMsg.Nonce = nonce
+				}
+			}
+
+			pbMessages[i] = pbMsg
+		}
 		return &pb.GetSigningResultResponse{
-			Completed: false,
-			Success:   true,
+			Completed:        false,
+			Success:          true,
+			OutgoingMessages: pbMessages,
 		}, nil
 	}
 
@@ -534,4 +791,190 @@ func (s *MPCNodeServer) MPCMessageStream(stream pb.MPCNodeService_MPCMessageStre
 			}
 		}
 	}
+}
+
+// ============================================
+// Защищённые P2P методы
+// ============================================
+
+// Ping обрабатывает ping запрос
+func (s *MPCNodeServer) Ping(ctx context.Context, req *pb.PingRequest) (*pb.PingResponse, error) {
+	slog.Debug("Ping received", "from_party", req.FromPartyId)
+	return &pb.PingResponse{
+		PartyId:   s.partyID,
+		Timestamp: req.Timestamp,
+		Healthy:   true,
+	}, nil
+}
+
+// ExchangePeerInfo обменивается информацией о пирах
+func (s *MPCNodeServer) ExchangePeerInfo(ctx context.Context, req *pb.PeerInfoRequest) (*pb.PeerInfoResponse, error) {
+	slog.Debug("ExchangePeerInfo", "from_party", req.RequesterPartyId)
+
+	var signingPublicKey string
+	if s.identity != nil {
+		signingPublicKey = s.identity.PublicKeyBase64()
+	}
+
+	return &pb.PeerInfoResponse{
+		PartyId:          s.partyID,
+		SigningPublicKey: signingPublicKey,
+		Address:          s.address,
+		KnownPeers:       nil, // TODO: заполнить известными пирами
+	}, nil
+}
+
+// ProcessSignedKeygenMessage обрабатывает подписанное keygen сообщение
+func (s *MPCNodeServer) ProcessSignedKeygenMessage(ctx context.Context, envelope *pb.SignedEnvelope) (*pb.SignedKeygenResponse, error) {
+	slog.Debug("ProcessSignedKeygenMessage",
+		"from_party", envelope.SignerPartyId,
+		"payload_len", len(envelope.Payload),
+	)
+
+	// Верифицируем подпись если verifier настроен
+	if s.verifier != nil {
+		secEnvelope := &security.SignedEnvelope{
+			Payload:       envelope.Payload,
+			SignerPartyID: envelope.SignerPartyId,
+			Signature:     envelope.Signature,
+			Timestamp:     envelope.Timestamp,
+			Nonce:         envelope.Nonce,
+		}
+
+		_, err := s.verifier.Verify(secEnvelope)
+		if err != nil {
+			slog.Warn("Message verification failed",
+				"from_party", envelope.SignerPartyId,
+				"error", err,
+			)
+			return &pb.SignedKeygenResponse{
+				Success:      false,
+				ErrorMessage: fmt.Sprintf("verification failed: %v", err),
+			}, nil
+		}
+	}
+
+	// Десериализуем KeygenMessage из payload
+	var keygenMsg pb.KeygenMessage
+	if err := proto.Unmarshal(envelope.Payload, &keygenMsg); err != nil {
+		slog.Warn("Failed to unmarshal keygen message", "error", err)
+		return &pb.SignedKeygenResponse{
+			Success:      false,
+			ErrorMessage: fmt.Sprintf("failed to unmarshal: %v", err),
+		}, nil
+	}
+
+	// Обрабатываем сообщение
+	resp, err := s.ProcessKeygenMessage(ctx, &keygenMsg)
+	if err != nil {
+		return &pb.SignedKeygenResponse{
+			Success:      false,
+			ErrorMessage: err.Error(),
+		}, nil
+	}
+
+	// Подписываем исходящие сообщения если signer настроен
+	var signedOutgoing []*pb.SignedEnvelope
+	if s.signer != nil && resp.OutgoingMessages != nil {
+		for _, outMsg := range resp.OutgoingMessages {
+			payload, err := proto.Marshal(outMsg)
+			if err != nil {
+				continue
+			}
+
+			signed, err := s.signer.Sign(payload)
+			if err != nil {
+				continue
+			}
+
+			signedOutgoing = append(signedOutgoing, &pb.SignedEnvelope{
+				Payload:       signed.Payload,
+				SignerPartyId: signed.SignerPartyID,
+				Signature:     signed.Signature,
+				Timestamp:     signed.Timestamp,
+				Nonce:         signed.Nonce,
+			})
+		}
+	}
+
+	return &pb.SignedKeygenResponse{
+		Success:          resp.Success,
+		ErrorMessage:     resp.ErrorMessage,
+		OutgoingMessages: signedOutgoing,
+	}, nil
+}
+
+// ProcessSignedSigningMessage обрабатывает подписанное signing сообщение
+func (s *MPCNodeServer) ProcessSignedSigningMessage(ctx context.Context, envelope *pb.SignedEnvelope) (*pb.SignedSigningResponse, error) {
+	slog.Debug("ProcessSignedSigningMessage",
+		"from_party", envelope.SignerPartyId,
+		"payload_len", len(envelope.Payload),
+	)
+
+	// Верифицируем подпись
+	if s.verifier != nil {
+		secEnvelope := &security.SignedEnvelope{
+			Payload:       envelope.Payload,
+			SignerPartyID: envelope.SignerPartyId,
+			Signature:     envelope.Signature,
+			Timestamp:     envelope.Timestamp,
+			Nonce:         envelope.Nonce,
+		}
+
+		_, err := s.verifier.Verify(secEnvelope)
+		if err != nil {
+			return &pb.SignedSigningResponse{
+				Success:      false,
+				ErrorMessage: fmt.Sprintf("verification failed: %v", err),
+			}, nil
+		}
+	}
+
+	// Десериализуем SigningMessage
+	var signingMsg pb.SigningMessage
+	if err := proto.Unmarshal(envelope.Payload, &signingMsg); err != nil {
+		return &pb.SignedSigningResponse{
+			Success:      false,
+			ErrorMessage: fmt.Sprintf("failed to unmarshal: %v", err),
+		}, nil
+	}
+
+	// Обрабатываем
+	resp, err := s.ProcessSigningMessage(ctx, &signingMsg)
+	if err != nil {
+		return &pb.SignedSigningResponse{
+			Success:      false,
+			ErrorMessage: err.Error(),
+		}, nil
+	}
+
+	// Подписываем исходящие
+	var signedOutgoing []*pb.SignedEnvelope
+	if s.signer != nil && resp.OutgoingMessages != nil {
+		for _, outMsg := range resp.OutgoingMessages {
+			payload, err := proto.Marshal(outMsg)
+			if err != nil {
+				continue
+			}
+
+			signed, err := s.signer.Sign(payload)
+			if err != nil {
+				continue
+			}
+
+			signedOutgoing = append(signedOutgoing, &pb.SignedEnvelope{
+				Payload:       signed.Payload,
+				SignerPartyId: signed.SignerPartyID,
+				Signature:     signed.Signature,
+				Timestamp:     signed.Timestamp,
+				Nonce:         signed.Nonce,
+			})
+		}
+	}
+
+	return &pb.SignedSigningResponse{
+		Success:          resp.Success,
+		ErrorMessage:     resp.ErrorMessage,
+		OutgoingMessages: signedOutgoing,
+	}, nil
 }

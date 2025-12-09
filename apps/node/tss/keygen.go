@@ -34,6 +34,9 @@ type KeygenSession struct {
 	// Буфер для исходящих сообщений
 	outgoingBuffer []OutgoingMessage
 	bufferMu       sync.Mutex
+
+	// Флаг сохранения в БД
+	saved bool
 }
 
 // KeygenResult содержит результат генерации ключей для одной ноды
@@ -342,6 +345,20 @@ func (ks *KeygenSession) GetSavedData() *keygen.LocalPartySaveData {
 	ks.mu.RLock()
 	defer ks.mu.RUnlock()
 	return ks.SavedData
+}
+
+// IsSaved проверяет, был ли share уже сохранён в БД
+func (ks *KeygenSession) IsSaved() bool {
+	ks.mu.RLock()
+	defer ks.mu.RUnlock()
+	return ks.saved
+}
+
+// MarkSaved отмечает, что share был сохранён в БД
+func (ks *KeygenSession) MarkSaved() {
+	ks.mu.Lock()
+	defer ks.mu.Unlock()
+	ks.saved = true
 }
 
 // PartyInfo информация об участнике

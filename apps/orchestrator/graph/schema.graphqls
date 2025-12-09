@@ -53,22 +53,6 @@ enum SessionType {
   RESHARING
 }
 
-type Session {
-  id: ID!
-  type: SessionType!
-  status: SessionStatus!
-  participants: [String!]!
-  threshold: Int!
-  createdAt: String!
-  completedAt: String
-}
-
-input CreateSessionInput {
-  type: SessionType!
-  participants: [String!]!
-  threshold: Int!
-}
-
 # ============================================
 # Результаты MPC операций
 # ============================================
@@ -79,6 +63,29 @@ type KeygenResult {
   address: String!
   threshold: Int!
   totalParties: Int!
+}
+
+type SigningResult {
+  sessionId: ID!
+  signature: String!
+  r: String!
+  s: String!
+  v: Int!
+}
+
+input StartSigningInput {
+  """
+  Ethereum адрес кошелька для подписания (публичный ключ должен быть сгенерирован ранее)
+  """
+  address: String!
+  """
+  Сообщение для подписания (hex или UTF-8 строка)
+  """
+  message: String!
+  """
+  Список party ID участников подписания (опционально - используются все ноды с share для этого адреса)
+  """
+  participants: [String!]
 }
 
 input StartKeygenInput {
@@ -118,13 +125,16 @@ type Mutation {
   registerNode(input: RegisterNodeInput!): Node!
   deleteNode(id: ID!): Node
 
-  # Управление сессиями
-  createSession(input: CreateSessionInput!): Session!
-
   # MPC операции
   """
   Запускает распределённую генерацию ключей (DKG) между MPC нодами.
   Возвращает результат с публичным ключом и адресом.
   """
   startKeygen(input: StartKeygenInput!): KeygenResult!
+
+  """
+  Запускает распределённое подписание сообщения (TSS) между MPC нодами.
+  Требует, чтобы для указанного адреса были сгенерированы ключи.
+  """
+  startSigning(input: StartSigningInput!): SigningResult!
 }

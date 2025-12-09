@@ -2,30 +2,74 @@ package nodeclient
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
 	pb "github.com/mpc_hsm/node/proto"
+	"github.com/mpc_hsm/orchestrator/config"
+	"github.com/mpc_hsm/orchestrator/logger"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 // NodeClient представляет клиент для подключения к MPC ноде
 type NodeClient struct {
-	conn    *grpc.ClientConn
-	client  pb.MPCNodeServiceClient
-	address string
-	nodeID  string
-	partyID string
-	mu      sync.RWMutex
+	conn      *grpc.ClientConn
+	client    pb.MPCNodeServiceClient
+	address   string
+	nodeID    string
+	partyID   string
+	mu        sync.RWMutex
+	tlsConfig *config.TLSConfig
+
+	signingPublicKey string // base64-encoded Ed25519 public key
 }
 
 // NewNodeClient создаёт новый клиент для подключения к ноде
-func NewNodeClient(address string) *NodeClient {
+func NewNodeClient(address string, tlsConfig *config.TLSConfig) *NodeClient {
 	return &NodeClient{
-		address: address,
+		address:   address,
+		tlsConfig: tlsConfig,
 	}
+}
+
+// loadTLSCredentials загружает TLS credentials для mTLS
+func (nc *NodeClient) loadTLSCredentials() (credentials.TransportCredentials, error) {
+	// Загружаем CA сертификат
+	caCert, err := os.ReadFile(nc.tlsConfig.CAFile)
+	if err != nil {
+		return nil, fmt.Errorf("не удалось прочитать CA сертификат %s: %w", nc.tlsConfig.CAFile, err)
+	}
+
+	caCertPool := x509.NewCertPool()
+	if !caCertPool.AppendCertsFromPEM(caCert) {
+		return nil, fmt.Errorf("не удалось добавить CA сертификат в pool")
+	}
+
+	// Загружаем клиентский сертификат
+	clientCert, err := tls.LoadX509KeyPair(nc.tlsConfig.CertFile, nc.tlsConfig.KeyFile)
+	if err != nil {
+		return nil, fmt.Errorf("не удалось загрузить клиентский сертификат: %w", err)
+	}
+
+	// Настраиваем TLS конфигурацию
+	tlsConfig := &tls.Config{
+		Certificates: []tls.Certificate{clientCert},
+		RootCAs:      caCertPool,
+		MinVersion:   tls.VersionTLS13,
+	}
+
+	// Если указано ServerName, используем его для верификации
+	if nc.tlsConfig.ServerName != "" {
+		tlsConfig.ServerName = nc.tlsConfig.ServerName
+	}
+
+	return credentials.NewTLS(tlsConfig), nil
 }
 
 // Connect устанавливает соединение с нодой
@@ -33,12 +77,35 @@ func (nc *NodeClient) Connect(ctx context.Context) error {
 	nc.mu.Lock()
 	defer nc.mu.Unlock()
 
-	conn, err := grpc.DialContext(ctx, nc.address,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithBlock(),
-	)
+	var dialOpts []grpc.DialOption
+
+	// Настраиваем TLS или insecure соединение
+	if nc.tlsConfig != nil && nc.tlsConfig.Enabled {
+		logger.Info("Подключение к ноде с mTLS", map[string]interface{}{
+			"address": nc.address,
+		})
+
+		creds, err := nc.loadTLSCredentials()
+		if err != nil {
+			return fmt.Errorf("не удалось загрузить TLS credentials: %w", err)
+		}
+
+		dialOpts = append(dialOpts,
+			grpc.WithTransportCredentials(creds),
+		)
+	} else {
+		logger.Warn("Подключение к ноде БЕЗ TLS (INSECURE)", map[string]interface{}{
+			"address": nc.address,
+		})
+
+		dialOpts = append(dialOpts,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+		)
+	}
+
+	conn, err := grpc.NewClient(nc.address, dialOpts...)
 	if err != nil {
-		return fmt.Errorf("failed to connect to node at %s: %w", nc.address, err)
+		return fmt.Errorf("не удалось подключиться к ноде %s: %w", nc.address, err)
 	}
 
 	nc.conn = conn
@@ -48,11 +115,18 @@ func (nc *NodeClient) Connect(ctx context.Context) error {
 	info, err := nc.client.GetNodeInfo(ctx, &pb.GetNodeInfoRequest{})
 	if err != nil {
 		conn.Close()
-		return fmt.Errorf("failed to get node info: %w", err)
+		return fmt.Errorf("не удалось получить информацию о ноде: %w", err)
 	}
 
 	nc.nodeID = info.NodeId
 	nc.partyID = info.PartyId
+	nc.signingPublicKey = info.SigningPublicKey
+
+	logger.Info("Успешное подключение к ноде", map[string]interface{}{
+		"address":  nc.address,
+		"party_id": nc.partyID,
+		"tls":      nc.tlsConfig != nil && nc.tlsConfig.Enabled,
+	})
 
 	return nil
 }
@@ -85,6 +159,13 @@ func (nc *NodeClient) GetPartyID() string {
 // GetAddress возвращает адрес ноды
 func (nc *NodeClient) GetAddress() string {
 	return nc.address
+}
+
+// GetSigningPublicKeyBase64 возвращает публичный ключ в base64
+func (nc *NodeClient) GetSigningPublicKeyBase64() string {
+	nc.mu.RLock()
+	defer nc.mu.RUnlock()
+	return nc.signingPublicKey
 }
 
 // HealthCheck проверяет состояние ноды
@@ -168,9 +249,7 @@ func (nc *NodeClient) GetKeygenResult(ctx context.Context, sessionID string) (*p
 		return nil, fmt.Errorf("not connected")
 	}
 
-	return client.GetKeygenResult(ctx, &pb.GetKeygenResultRequest{
-		SessionId: sessionID,
-	})
+	return client.GetKeygenResult(ctx, &pb.GetKeygenResultRequest{SessionId: sessionID})
 }
 
 // InitSigning инициализирует сессию подписания на ноде
@@ -223,27 +302,27 @@ func (nc *NodeClient) GetSigningResult(ctx context.Context, sessionID string) (*
 		return nil, fmt.Errorf("not connected")
 	}
 
-	return client.GetSigningResult(ctx, &pb.GetSigningResultRequest{
-		SessionId: sessionID,
-	})
+	return client.GetSigningResult(ctx, &pb.GetSigningResultRequest{SessionId: sessionID})
 }
 
 // NodeManager управляет подключениями ко всем нодам
 type NodeManager struct {
-	nodes map[string]*NodeClient // partyID -> client
-	mu    sync.RWMutex
+	nodes     map[string]*NodeClient // partyID -> client
+	mu        sync.RWMutex
+	tlsConfig *config.TLSConfig
 }
 
 // NewNodeManager создаёт новый менеджер нод
-func NewNodeManager() *NodeManager {
+func NewNodeManager(tlsConfig *config.TLSConfig) *NodeManager {
 	return &NodeManager{
-		nodes: make(map[string]*NodeClient),
+		nodes:     make(map[string]*NodeClient),
+		tlsConfig: tlsConfig,
 	}
 }
 
 // AddNode добавляет и подключает ноду
 func (nm *NodeManager) AddNode(ctx context.Context, address string) (*NodeClient, error) {
-	client := NewNodeClient(address)
+	client := NewNodeClient(address, nm.tlsConfig)
 
 	connectCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
@@ -319,67 +398,4 @@ func (nm *NodeManager) CloseAll() {
 		client.Close()
 	}
 	nm.nodes = make(map[string]*NodeClient)
-}
-
-// BroadcastKeygenMessage рассылает keygen сообщение всем участникам
-func (nm *NodeManager) BroadcastKeygenMessage(ctx context.Context, msg *pb.KeygenMessage, excludeParty string) error {
-	nm.mu.RLock()
-	defer nm.mu.RUnlock()
-
-	for partyID, client := range nm.nodes {
-		if partyID == excludeParty {
-			continue
-		}
-
-		// Проверяем, является ли нода получателем
-		if !msg.IsBroadcast && len(msg.ToParties) > 0 {
-			isRecipient := false
-			for _, to := range msg.ToParties {
-				if to == partyID {
-					isRecipient = true
-					break
-				}
-			}
-			if !isRecipient {
-				continue
-			}
-		}
-
-		if _, err := client.ProcessKeygenMessage(ctx, msg); err != nil {
-			return fmt.Errorf("failed to send message to %s: %w", partyID, err)
-		}
-	}
-
-	return nil
-}
-
-// BroadcastSigningMessage рассылает signing сообщение всем участникам
-func (nm *NodeManager) BroadcastSigningMessage(ctx context.Context, msg *pb.SigningMessage, excludeParty string) error {
-	nm.mu.RLock()
-	defer nm.mu.RUnlock()
-
-	for partyID, client := range nm.nodes {
-		if partyID == excludeParty {
-			continue
-		}
-
-		if !msg.IsBroadcast && len(msg.ToParties) > 0 {
-			isRecipient := false
-			for _, to := range msg.ToParties {
-				if to == partyID {
-					isRecipient = true
-					break
-				}
-			}
-			if !isRecipient {
-				continue
-			}
-		}
-
-		if _, err := client.ProcessSigningMessage(ctx, msg); err != nil {
-			return fmt.Errorf("failed to send message to %s: %w", partyID, err)
-		}
-	}
-
-	return nil
 }
