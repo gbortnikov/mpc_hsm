@@ -1,33 +1,31 @@
-# Binary
-mpc-node
-
-# Environment files (contain secrets)
-.env
-*.env
-!.env.example
-
-# Keys directory
-keys/
-*.key
-*.pem
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Test coverage
-coverage.out
-coverage.html
-
-# Build
-bin/
-dist/
+# Binaries
+mpc_node
+*.exe
+*.dll
+*.so
+*.dylib
 
 # Logs
+logs/
 *.log
+
+# Keys
+keys/
+*.pem
+*.key
+*.crt
+
+# PID files
+.node*.pid
+*.pid
+
+# Config overrides
+*.local.yaml
+
+# Environment
+.env
+.env.local
+
+# Temporary
+tmp/
+temp/

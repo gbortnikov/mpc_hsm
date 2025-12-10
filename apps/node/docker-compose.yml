@@ -1,0 +1,101 @@
+version: '3.8'
+
+services:
+  # PostgreSQL для Node 1
+  postgres-node1:
+    image: postgres:15-alpine
+    container_name: mpc-postgres-node1
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: mpc_node1
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-node1-data:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mpc-network
+
+  # PostgreSQL для Node 2
+  postgres-node2:
+    image: postgres:15-alpine
+    container_name: mpc-postgres-node2
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: mpc_node2
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-node2-data:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mpc-network
+
+  # PostgreSQL для Node 3
+  postgres-node3:
+    image: postgres:15-alpine
+    container_name: mpc-postgres-node3
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: mpc_node3
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres-node3-data:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mpc-network
+
+  # Опционально: pgAdmin для управления БД
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: mpc-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@mpc.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    networks:
+      - mpc-network
+    depends_on:
+      - postgres-node1
+      - postgres-node2
+      - postgres-node3
+
+volumes:
+  postgres-node1-data:
+    driver: local
+  postgres-node2-data:
+    driver: local
+  postgres-node3-data:
+    driver: local
+  pgadmin-data:
+    driver: local
+
+networks:
+  mpc-network:
+    driver: bridge

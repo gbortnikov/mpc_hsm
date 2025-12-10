@@ -1,0 +1,30 @@
+node:
+  id: node1
+  party_id: party1
+  port: 50051
+
+database:
+  host: localhost
+  port: 5432
+  user: postgres
+  password: postgres
+  database: mpc_node1
+  ssl_mode: disable
+  max_conns: 10
+  min_conns: 2
+
+security:
+  key_dir: ./keys/node1
+  whitelist_file: ./config/whitelist.json
+  peers_file: ./config/peers.json
+
+tls:
+  enabled: false
+  # Раскомментируйте для включения TLS
+  # cert_file: ./certs/node1-server.crt
+  # key_file: ./certs/node1-server.key
+  # ca_file: ./certs/ca.crt
+
+logging:
+  level: info  # debug, info, warn, error
+  format: text # text или json
