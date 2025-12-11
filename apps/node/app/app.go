@@ -33,17 +33,17 @@ type Application struct {
 
 // Components содержит все инициализированные компоненты приложения
 type Components struct {
-	Config       *config.Config
-	Identity     *security.NodeIdentity
-	Signer       *security.MessageSigner
-	Verifier     *security.MessageVerifier
-	Whitelist    *security.PartyWhitelist
-	ReplayGuard  *security.ReplayGuard
-	DBPool       *pgxpool.Pool
-	ShareStore   *db.ShareStore
-	MPCServer    *server.MPCNodeServer
-	GRPCServer   *grpc.Server
-	Listener     net.Listener
+	Config      *config.Config
+	Identity    *security.NodeIdentity
+	Signer      *security.MessageSigner
+	Verifier    *security.MessageVerifier
+	Whitelist   *security.PartyWhitelist
+	ReplayGuard *security.ReplayGuard
+	DBPool      *pgxpool.Pool
+	ShareStore  *db.ShareStore
+	MPCServer   *server.MPCNodeServer
+	GRPCServer  *grpc.Server
+	Listener    net.Listener
 }
 
 // New создаёт новый экземпляр Application
@@ -71,6 +71,7 @@ func (a *Application) Initialize() error {
 	}
 
 	// Уровень безопасности
+	// Создали ключи Ed25519, whiteList, подписанта и верификатора сообщений
 	if err := a.initSecurity(components); err != nil {
 		return fmt.Errorf("failed to initialize security: %w", err)
 	}
