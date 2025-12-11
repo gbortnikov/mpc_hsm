@@ -68,27 +68,6 @@ func (rg *ReplayGuard) Check(nonce []byte, timestamp int64) error {
 	return nil
 }
 
-// CheckWithoutRecord проверяет nonce без записи (для предварительной проверки)
-func (rg *ReplayGuard) CheckWithoutRecord(nonce []byte) bool {
-	nonceHex := hex.EncodeToString(nonce)
-
-	rg.mu.RLock()
-	defer rg.mu.RUnlock()
-
-	_, exists := rg.usedNonces[nonceHex]
-	return !exists
-}
-
-// Record записывает nonce (для двухфазной проверки)
-func (rg *ReplayGuard) Record(nonce []byte, timestamp int64) {
-	nonceHex := hex.EncodeToString(nonce)
-
-	rg.mu.Lock()
-	defer rg.mu.Unlock()
-
-	rg.usedNonces[nonceHex] = timestamp
-}
-
 // cleanupLoop периодически удаляет устаревшие nonce
 func (rg *ReplayGuard) cleanupLoop() {
 	ticker := time.NewTicker(rg.cleanupInterval)
@@ -122,18 +101,4 @@ func (rg *ReplayGuard) cleanup() {
 // Stop останавливает фоновую очистку
 func (rg *ReplayGuard) Stop() {
 	close(rg.stopCh)
-}
-
-// Size возвращает количество записанных nonce
-func (rg *ReplayGuard) Size() int {
-	rg.mu.RLock()
-	defer rg.mu.RUnlock()
-	return len(rg.usedNonces)
-}
-
-// Clear очищает все записанные nonce
-func (rg *ReplayGuard) Clear() {
-	rg.mu.Lock()
-	defer rg.mu.Unlock()
-	rg.usedNonces = make(map[string]int64)
 }

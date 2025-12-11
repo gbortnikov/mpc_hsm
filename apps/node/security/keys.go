@@ -130,29 +130,6 @@ func LoadPublicKeyFromBase64(encoded string) (ed25519.PublicKey, error) {
 	return ed25519.PublicKey(decoded), nil
 }
 
-// LoadPublicKeyFromPEM загружает публичный ключ из PEM файла
-func LoadPublicKeyFromPEM(path string) (ed25519.PublicKey, error) {
-	publicKeyPEM, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read public key file: %w", err)
-	}
-
-	block, _ := pem.Decode(publicKeyPEM)
-	if block == nil {
-		return nil, fmt.Errorf("failed to decode PEM block")
-	}
-
-	if block.Type != "ED25519 PUBLIC KEY" {
-		return nil, fmt.Errorf("unexpected PEM type: %s", block.Type)
-	}
-
-	if len(block.Bytes) != ed25519.PublicKeySize {
-		return nil, fmt.Errorf("invalid public key size: got %d, expected %d", len(block.Bytes), ed25519.PublicKeySize)
-	}
-
-	return ed25519.PublicKey(block.Bytes), nil
-}
-
 // LoadOrGenerateIdentity загружает существующую или генерирует новую идентичность
 func LoadOrGenerateIdentity(partyID, keyDir string) (*NodeIdentity, error) {
 	privateKeyPath := filepath.Join(keyDir, "signing.key")

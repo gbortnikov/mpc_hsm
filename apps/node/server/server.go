@@ -16,12 +16,10 @@ import (
 type MPCNodeServer struct {
 	pb.UnimplementedMPCNodeServiceServer
 
-	nodeID    string
-	partyID   string
-	publicKey string
-	address   string
-	status    pb.NodeStatus
-	version   string
+	nodeID  string
+	partyID string
+	status  pb.NodeStatus
+	version string
 
 	// Хранилище сессий генерации ключей
 	keygenSessions map[string]*tss.KeygenSession
@@ -113,8 +111,6 @@ func (s *MPCNodeServer) GetNodeInfo(ctx context.Context, req *pb.GetNodeInfoRequ
 	return &pb.GetNodeInfoResponse{
 		NodeId:           s.nodeID,
 		PartyId:          s.partyID,
-		PublicKey:        s.publicKey,
-		Address:          s.address,
 		Status:           s.status,
 		SupportedCurves:  s.supportedCurves,
 		SigningPublicKey: signingPublicKey,

@@ -32,8 +32,7 @@ func (s *MPCNodeServer) ExchangePeerInfo(ctx context.Context, req *pb.PeerInfoRe
 	return &pb.PeerInfoResponse{
 		PartyId:          s.partyID,
 		SigningPublicKey: signingPublicKey,
-		Address:          s.address,
-		KnownPeers:       nil, // TODO: заполнить известными узлами
+		KnownPeers:       nil,
 	}, nil
 }
 

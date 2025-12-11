@@ -45,39 +45,6 @@ func NewServerTLSConfig(cfg *TLSConfig) (*tls.Config, error) {
 	}, nil
 }
 
-// NewClientTLSConfig создаёт TLS конфиг для gRPC клиента с mTLS
-func NewClientTLSConfig(cfg *TLSConfig) (*tls.Config, error) {
-	// Загрузка сертификата и ключа клиента (для взаимной аутентификации)
-	cert, err := tls.LoadX509KeyPair(cfg.CertFile, cfg.KeyFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load client certificate: %w", err)
-	}
-
-	// Загрузка CA для верификации сервера
-	caCert, err := os.ReadFile(cfg.CAFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read CA certificate: %w", err)
-	}
-
-	caPool := x509.NewCertPool()
-	if !caPool.AppendCertsFromPEM(caCert) {
-		return nil, fmt.Errorf("failed to parse CA certificate")
-	}
-
-	tlsConfig := &tls.Config{
-		Certificates:       []tls.Certificate{cert},
-		RootCAs:            caPool,
-		MinVersion:         tls.VersionTLS13,
-		InsecureSkipVerify: cfg.SkipVerify,
-	}
-
-	if cfg.ServerName != "" {
-		tlsConfig.ServerName = cfg.ServerName
-	}
-
-	return tlsConfig, nil
-}
-
 // NewServerCredentials создаёт gRPC credentials для сервера
 func NewServerCredentials(cfg *TLSConfig) (credentials.TransportCredentials, error) {
 	tlsConfig, err := NewServerTLSConfig(cfg)
@@ -85,20 +52,6 @@ func NewServerCredentials(cfg *TLSConfig) (credentials.TransportCredentials, err
 		return nil, err
 	}
 	return credentials.NewTLS(tlsConfig), nil
-}
-
-// NewClientCredentials создаёт gRPC credentials для клиента
-func NewClientCredentials(cfg *TLSConfig) (credentials.TransportCredentials, error) {
-	tlsConfig, err := NewClientTLSConfig(cfg)
-	if err != nil {
-		return nil, err
-	}
-	return credentials.NewTLS(tlsConfig), nil
-}
-
-// InsecureCredentials возвращает небезопасные учётные данные (только для разработки!)
-func InsecureCredentials() credentials.TransportCredentials {
-	return nil
 }
 
 // ValidateTLSConfig проверяет корректность конфигурации TLS

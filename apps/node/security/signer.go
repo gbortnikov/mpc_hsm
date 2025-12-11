@@ -54,16 +54,6 @@ func (ms *MessageSigner) Sign(payload []byte) (*SignedEnvelope, error) {
 	}, nil
 }
 
-// GetPartyID возвращает PartyID подписчика
-func (ms *MessageSigner) GetPartyID() string {
-	return ms.identity.PartyID
-}
-
-// GetPublicKey возвращает публичный ключ подписчика
-func (ms *MessageSigner) GetPublicKey() ed25519.PublicKey {
-	return ms.identity.PublicKey
-}
-
 // buildSignatureData формирует данные для подписи
 func buildSignatureData(payload []byte, timestamp int64, nonce []byte) []byte {
 	// Формат: len(payload) || payload || timestamp || nonce

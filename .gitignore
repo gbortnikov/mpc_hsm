@@ -1,0 +1,32 @@
+# Binaries
+mpc_node
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Logs
+logs/
+*.log
+
+# Keys
+keys/
+*.pem
+*.key
+*.crt
+
+# PID files
+.node*.pid
+*.pid
+
+# Config overrides
+*.local.yaml
+
+# Environment
+.env
+.env.local
+
+# Temporary
+tmp/
+temp/
+node_modules

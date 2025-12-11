@@ -126,21 +126,6 @@ func (s *ShareStore) LoadShare(ctx context.Context, sessionID, partyID string) (
 	return &saveData, nil
 }
 
-// LoadShareByID загружает долю по её ID
-func (s *ShareStore) LoadShareByID(ctx context.Context, id int64) (*Share, *keygen.LocalPartySaveData, error) {
-	share, err := s.queries.GetShareByID(ctx, id)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get share: %w", err)
-	}
-
-	var saveData keygen.LocalPartySaveData
-	if err := json.Unmarshal(share.ShareData, &saveData); err != nil {
-		return nil, nil, fmt.Errorf("failed to unmarshal share data: %w", err)
-	}
-
-	return &share, &saveData, nil
-}
-
 // LoadShareByAddress загружает доли по Ethereum адресу
 func (s *ShareStore) LoadShareByAddress(ctx context.Context, address string) ([]Share, error) {
 	shares, err := s.queries.GetSharesByAddress(ctx, address)
@@ -166,39 +151,4 @@ func (s *ShareStore) LoadShareDataByAddress(ctx context.Context, address string)
 	}
 
 	return &saveData, nil
-}
-
-// GetSharesByParty возвращает все доли для участника
-func (s *ShareStore) GetSharesByParty(ctx context.Context, partyID string) ([]Share, error) {
-	return s.queries.GetSharesByPartyID(ctx, partyID)
-}
-
-// ShareExists проверяет существование доли
-func (s *ShareStore) ShareExists(ctx context.Context, sessionID, partyID string) (bool, error) {
-	exists, err := s.queries.ShareExists(ctx, ShareExistsParams{
-		SessionID: sessionID,
-		PartyID:   partyID,
-	})
-	if err != nil {
-		return false, err
-	}
-	return exists, nil
-}
-
-// DeleteShare удаляет долю по ID
-func (s *ShareStore) DeleteShare(ctx context.Context, id int64) error {
-	return s.queries.DeleteShare(ctx, id)
-}
-
-// ListShares возвращает постраничный список долей
-func (s *ShareStore) ListShares(ctx context.Context, limit, offset int32) ([]Share, error) {
-	return s.queries.ListShares(ctx, ListSharesParams{
-		Limit:  limit,
-		Offset: offset,
-	})
-}
-
-// Close закрывает пул соединений с базой данных
-func (s *ShareStore) Close() {
-	s.pool.Close()
 }

@@ -46,18 +46,6 @@ func (w *PartyWhitelist) Add(partyID string, publicKey ed25519.PublicKey) error 
 	return nil
 }
 
-// Remove удаляет участника из белого списка
-func (w *PartyWhitelist) Remove(partyID string) bool {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	if _, exists := w.parties[partyID]; exists {
-		delete(w.parties, partyID)
-		return true
-	}
-	return false
-}
-
 // IsAllowed проверяет, есть ли участник в белом списке
 func (w *PartyWhitelist) IsAllowed(partyID string) bool {
 	w.mu.RLock()
@@ -91,20 +79,6 @@ func (w *PartyWhitelist) Verify(partyID string, publicKey ed25519.PublicKey) boo
 	return subtle.ConstantTimeCompare(storedKey, publicKey) == 1
 }
 
-// GetAll возвращает копию всех записей белого списка
-func (w *PartyWhitelist) GetAll() map[string]ed25519.PublicKey {
-	w.mu.RLock()
-	defer w.mu.RUnlock()
-
-	result := make(map[string]ed25519.PublicKey, len(w.parties))
-	for k, v := range w.parties {
-		keyCopy := make(ed25519.PublicKey, len(v))
-		copy(keyCopy, v)
-		result[k] = keyCopy
-	}
-	return result
-}
-
 // Count возвращает количество участников в белом списке
 func (w *PartyWhitelist) Count() int {
 	w.mu.RLock()
@@ -133,35 +107,6 @@ func (w *PartyWhitelist) LoadFromFile(path string) error {
 			return fmt.Errorf("failed to decode public key for %s: %w", entry.PartyID, err)
 		}
 		w.parties[entry.PartyID] = publicKey
-	}
-
-	return nil
-}
-
-// SaveToFile сохраняет белый список в JSON файл
-func (w *PartyWhitelist) SaveToFile(path string) error {
-	w.mu.RLock()
-	defer w.mu.RUnlock()
-
-	config := WhitelistConfig{
-		Parties: make([]WhitelistEntry, 0, len(w.parties)),
-	}
-
-	for partyID, publicKey := range w.parties {
-		identity := &NodeIdentity{PublicKey: publicKey}
-		config.Parties = append(config.Parties, WhitelistEntry{
-			PartyID:   partyID,
-			PublicKey: identity.PublicKeyBase64(),
-		})
-	}
-
-	data, err := json.MarshalIndent(config, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal whitelist: %w", err)
-	}
-
-	if err := os.WriteFile(path, data, 0644); err != nil {
-		return fmt.Errorf("failed to write whitelist file: %w", err)
 	}
 
 	return nil

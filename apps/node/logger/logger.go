@@ -46,38 +46,3 @@ func (l *Logger) WithContext(ctx context.Context) *slog.Logger {
 	}
 	return l.logger
 }
-
-// Debug записывает отладочное сообщение с контекстом
-func (l *Logger) Debug(ctx context.Context, msg string, args ...any) {
-	l.WithContext(ctx).Debug(msg, args...)
-}
-
-// Info записывает информационное сообщение с контекстом
-func (l *Logger) Info(ctx context.Context, msg string, args ...any) {
-	l.WithContext(ctx).Info(msg, args...)
-}
-
-// Warn записывает предупреждение с контекстом
-func (l *Logger) Warn(ctx context.Context, msg string, args ...any) {
-	l.WithContext(ctx).Warn(msg, args...)
-}
-
-// Error записывает сообщение об ошибке с контекстом
-func (l *Logger) Error(ctx context.Context, msg string, args ...any) {
-	l.WithContext(ctx).Error(msg, args...)
-}
-
-// WithRequestID добавляет ID запроса в контекст
-func WithRequestID(ctx context.Context, requestID string) context.Context {
-	return context.WithValue(ctx, RequestIDKey, requestID)
-}
-
-// WithSessionID добавляет ID сессии в контекст
-func WithSessionID(ctx context.Context, sessionID string) context.Context {
-	return context.WithValue(ctx, SessionIDKey, sessionID)
-}
-
-// WithPartyID добавляет ID участника в контекст
-func WithPartyID(ctx context.Context, partyID string) context.Context {
-	return context.WithValue(ctx, PartyIDKey, partyID)
-}

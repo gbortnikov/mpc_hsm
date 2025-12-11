@@ -169,14 +169,6 @@ func (ma *MessageAuthenticator) VerifySigningMessage(
 	return nil
 }
 
-// GetPartyID возвращает PartyID аутентификатора
-func (ma *MessageAuthenticator) GetPartyID() string {
-	if ma.identity == nil {
-		return ""
-	}
-	return ma.identity.PartyID
-}
-
 // buildKeygenSignatureData формирует данные для подписи сообщения генерации ключей
 func buildKeygenSignatureData(data *KeygenMessageData, timestamp int64, nonce []byte) []byte {
 	// Формат: "KEYGEN" || len(sessionID) || sessionID || len(fromParty) || fromParty ||
