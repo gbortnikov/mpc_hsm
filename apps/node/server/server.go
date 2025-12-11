@@ -23,7 +23,7 @@ type MPCNodeServer struct {
 	status    pb.NodeStatus
 	version   string
 
-	// Хранилище сессий keygen
+	// Хранилище сессий генерации ключей
 	keygenSessions map[string]*tss.KeygenSession
 	keygenMu       sync.RWMutex
 
@@ -34,7 +34,7 @@ type MPCNodeServer struct {
 	// Поддерживаемые кривые
 	supportedCurves []string
 
-	// Security компоненты
+	// Компоненты безопасности
 	identity      *security.NodeIdentity
 	signer        *security.MessageSigner
 	verifier      *security.MessageVerifier
@@ -42,7 +42,7 @@ type MPCNodeServer struct {
 	authenticator *security.MessageAuthenticator
 	replayGuard   *security.ReplayGuard
 
-	// Database (обязательно)
+	// База данных (обязательно)
 	shareStore *db.ShareStore
 }
 
@@ -70,7 +70,7 @@ func NewMPCNodeServerWithSecurity(
 	replayGuard *security.ReplayGuard,
 	shareStore *db.ShareStore,
 ) *MPCNodeServer {
-	// Создаём аутентификатор для проверки сообщений
+	// Создание аутентификатора для проверки сообщений
 	authenticator := security.NewMessageAuthenticator(identity, whitelist, replayGuard)
 
 	return &MPCNodeServer{
@@ -121,7 +121,7 @@ func (s *MPCNodeServer) GetNodeInfo(ctx context.Context, req *pb.GetNodeInfoRequ
 	}, nil
 }
 
-// MPCMessageStream реализует двунаправленный поток для обмена сообщениями
+// MPCMessageStream реализует двунаправленный поток для обмена MPC сообщениями
 func (s *MPCNodeServer) MPCMessageStream(stream pb.MPCNodeService_MPCMessageStreamServer) error {
 	for {
 		msg, err := stream.Recv()
@@ -132,7 +132,7 @@ func (s *MPCNodeServer) MPCMessageStream(stream pb.MPCNodeService_MPCMessageStre
 			return err
 		}
 
-		// Обрабатываем входящее сообщение
+		// Обработка входящего сообщения
 		var responses []*pb.MPCStreamMessage
 
 		switch payload := msg.MessageType.(type) {
@@ -187,7 +187,7 @@ func (s *MPCNodeServer) MPCMessageStream(stream pb.MPCNodeService_MPCMessageStre
 			}
 
 		case *pb.MPCStreamMessage_Control:
-			// Обработка контрольных сообщений
+			// Обработка управляющих сообщений
 			switch payload.Control.Type {
 			case pb.ControlType_CONTROL_TYPE_HEARTBEAT:
 				responses = append(responses, &pb.MPCStreamMessage{
@@ -203,7 +203,7 @@ func (s *MPCNodeServer) MPCMessageStream(stream pb.MPCNodeService_MPCMessageStre
 			}
 		}
 
-		// Отправляем ответы
+		// Отправка ответов
 		for _, resp := range responses {
 			if err := stream.Send(resp); err != nil {
 				return err

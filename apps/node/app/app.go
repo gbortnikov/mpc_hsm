@@ -20,7 +20,7 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
-// Application manages the lifecycle of the MPC Node application
+// Application управляет жизненным циклом приложения MPC Node
 type Application struct {
 	config      *config.Config
 	ctx         context.Context
@@ -31,7 +31,7 @@ type Application struct {
 	initialized bool
 }
 
-// Components holds all initialized application components
+// Components содержит все инициализированные компоненты приложения
 type Components struct {
 	Config       *config.Config
 	Identity     *security.NodeIdentity
@@ -46,7 +46,7 @@ type Components struct {
 	Listener     net.Listener
 }
 
-// New creates a new Application instance
+// New создаёт новый экземпляр Application
 func New(cfg *config.Config) *Application {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Application{
@@ -56,31 +56,31 @@ func New(cfg *config.Config) *Application {
 	}
 }
 
-// Initialize sets up all application components
+// Initialize настраивает все компоненты приложения
 func (a *Application) Initialize() error {
 	slog.Info("Initializing application components...")
 
-	// Validate configuration
+	// Проверка конфигурации
 	if err := a.config.Validate(); err != nil {
 		return fmt.Errorf("invalid configuration: %w", err)
 	}
 
-	// Initialize components in order
+	// Инициализация компонентов по порядку
 	components := &Components{
 		Config: a.config,
 	}
 
-	// Security layer
+	// Уровень безопасности
 	if err := a.initSecurity(components); err != nil {
 		return fmt.Errorf("failed to initialize security: %w", err)
 	}
 
-	// Database
+	// База данных
 	if err := a.initDatabase(components); err != nil {
 		return fmt.Errorf("failed to initialize database: %w", err)
 	}
 
-	// gRPC server
+	// gRPC сервер
 	if err := a.initGRPCServer(components); err != nil {
 		return fmt.Errorf("failed to initialize gRPC server: %w", err)
 	}
@@ -92,11 +92,11 @@ func (a *Application) Initialize() error {
 	return nil
 }
 
-// initSecurity initializes security components
+// initSecurity инициализирует компоненты безопасности
 func (a *Application) initSecurity(c *Components) error {
 	slog.Debug("Initializing security components...")
 
-	// Generate or load identity
+	// Генерация или загрузка идентификатора
 	var identity *security.NodeIdentity
 	var err error
 
@@ -118,7 +118,7 @@ func (a *Application) initSecurity(c *Components) error {
 	}
 	c.Identity = identity
 
-	// Initialize whitelist
+	// Инициализация белого списка
 	whitelist := security.NewPartyWhitelist()
 	if a.config.Security.WhitelistFile != "" {
 		if err := whitelist.LoadFromFile(a.config.Security.WhitelistFile); err != nil {
@@ -133,11 +133,11 @@ func (a *Application) initSecurity(c *Components) error {
 	whitelist.Add(a.config.Node.PartyID, identity.PublicKey)
 	c.Whitelist = whitelist
 
-	// Initialize replay guard
+	// Инициализация защиты от повторных атак
 	replayGuard := security.NewReplayGuard(nil)
 	c.ReplayGuard = replayGuard
 
-	// Create signer and verifier
+	// Создание подписчика и верификатора
 	c.Signer = security.NewMessageSigner(identity)
 	c.Verifier = security.NewMessageVerifier(whitelist, replayGuard, nil)
 
@@ -145,7 +145,7 @@ func (a *Application) initSecurity(c *Components) error {
 	return nil
 }
 
-// initDatabase initializes database connection and stores
+// initDatabase инициализирует подключение к базе данных и хранилища
 func (a *Application) initDatabase(c *Components) error {
 	slog.Debug("Initializing database connection...")
 
@@ -162,14 +162,14 @@ func (a *Application) initDatabase(c *Components) error {
 	return nil
 }
 
-// initGRPCServer initializes the gRPC server and MPC service
+// initGRPCServer инициализирует gRPC сервер и MPC сервис
 func (a *Application) initGRPCServer(c *Components) error {
 	slog.Debug("Initializing gRPC server...")
 
-	// Prepare gRPC server options
+	// Подготовка опций gRPC сервера
 	var serverOpts []grpc.ServerOption
 
-	// Add middleware interceptors
+	// Добавление middleware перехватчиков
 	serverOpts = append(serverOpts,
 		grpc.ChainUnaryInterceptor(
 			middleware.RecoveryUnaryInterceptor(),
@@ -183,7 +183,7 @@ func (a *Application) initGRPCServer(c *Components) error {
 		),
 	)
 
-	// Configure TLS if enabled
+	// Настройка TLS если включено
 	if a.config.TLS.Enabled {
 		tlsConfig := &security.TLSConfig{
 			CertFile: a.config.TLS.CertFile,
@@ -206,11 +206,11 @@ func (a *Application) initGRPCServer(c *Components) error {
 		slog.Warn("Running without TLS (insecure mode)")
 	}
 
-	// Create gRPC server
+	// Создание gRPC сервера
 	grpcServer := grpc.NewServer(serverOpts...)
 	c.GRPCServer = grpcServer
 
-	// Create MPC server
+	// Создание MPC сервера
 	mpcServer := server.NewMPCNodeServerWithSecurity(
 		a.config.Node.ID,
 		a.config.Node.PartyID,
@@ -223,16 +223,16 @@ func (a *Application) initGRPCServer(c *Components) error {
 	)
 	c.MPCServer = mpcServer
 
-	// Register service
+	// Регистрация сервиса
 	pb.RegisterMPCNodeServiceServer(grpcServer, mpcServer)
 
-	// Enable reflection for debugging
+	// Включение reflection для отладки
 	if a.config.Logging.Level == "debug" {
 		reflection.Register(grpcServer)
 		slog.Debug("gRPC reflection enabled")
 	}
 
-	// Create listener
+	// Создание слушателя
 	addr := fmt.Sprintf(":%d", a.config.Node.Port)
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -244,17 +244,17 @@ func (a *Application) initGRPCServer(c *Components) error {
 	return nil
 }
 
-// Run starts the application and blocks until shutdown
+// Run запускает приложение и блокируется до завершения
 func (a *Application) Run() error {
 	if !a.initialized {
 		return fmt.Errorf("application not initialized, call Initialize() first")
 	}
 
-	// Setup signal handling for graceful shutdown
+	// Настройка обработки сигналов для корректного завершения
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
-	// Start gRPC server in a goroutine
+	// Запуск gRPC сервера в горутине
 	errCh := make(chan error, 1)
 	go func() {
 		slog.Info("MPC Node started",
@@ -269,7 +269,7 @@ func (a *Application) Run() error {
 		}
 	}()
 
-	// Wait for shutdown signal or error
+	// Ожидание сигнала завершения или ошибки
 	select {
 	case sig := <-sigCh:
 		slog.Info("Received shutdown signal", "signal", sig)
@@ -280,26 +280,26 @@ func (a *Application) Run() error {
 	}
 }
 
-// Shutdown gracefully shuts down the application
+// Shutdown корректно завершает работу приложения
 func (a *Application) Shutdown() error {
 	slog.Info("Shutting down application...")
 
-	// Cancel context
+	// Отмена контекста
 	a.cancel()
 
-	// Gracefully stop gRPC server
+	// Корректная остановка gRPC сервера
 	if a.components != nil && a.components.GRPCServer != nil {
 		slog.Debug("Stopping gRPC server...")
 		a.components.GRPCServer.GracefulStop()
 	}
 
-	// Stop replay guard
+	// Остановка защиты от повторных атак
 	if a.components != nil && a.components.ReplayGuard != nil {
 		slog.Debug("Stopping replay guard...")
 		a.components.ReplayGuard.Stop()
 	}
 
-	// Close database connection
+	// Закрытие подключения к базе данных
 	if a.components != nil && a.components.DBPool != nil {
 		slog.Debug("Closing database connection...")
 		a.components.DBPool.Close()
@@ -309,12 +309,12 @@ func (a *Application) Shutdown() error {
 	return nil
 }
 
-// GetComponents returns the initialized components
+// GetComponents возвращает инициализированные компоненты
 func (a *Application) GetComponents() *Components {
 	return a.components
 }
 
-// Context returns the application context
+// Context возвращает контекст приложения
 func (a *Application) Context() context.Context {
 	return a.ctx
 }

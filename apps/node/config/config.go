@@ -9,7 +9,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Config represents the application configuration
+// Config представляет конфигурацию приложения
 type Config struct {
 	Node     NodeConfig     `yaml:"node"`
 	Database DatabaseConfig `yaml:"database"`
@@ -18,14 +18,14 @@ type Config struct {
 	Logging  LoggingConfig  `yaml:"logging"`
 }
 
-// NodeConfig contains node-specific settings
+// NodeConfig содержит настройки, специфичные для узла
 type NodeConfig struct {
 	ID      string `yaml:"id"`
 	PartyID string `yaml:"party_id"`
 	Port    int    `yaml:"port"`
 }
 
-// DatabaseConfig contains database connection settings
+// DatabaseConfig содержит настройки подключения к базе данных
 type DatabaseConfig struct {
 	Host            string        `yaml:"host"`
 	Port            int           `yaml:"port"`
@@ -39,7 +39,7 @@ type DatabaseConfig struct {
 	MaxConnIdleTime time.Duration `yaml:"max_conn_idle_time"`
 }
 
-// ConnectionString returns PostgreSQL connection URL
+// ConnectionString возвращает URL подключения к PostgreSQL
 func (d *DatabaseConfig) ConnectionString() string {
 	return fmt.Sprintf(
 		"postgres://%s:%s@%s:%d/%s?sslmode=%s",
@@ -47,14 +47,14 @@ func (d *DatabaseConfig) ConnectionString() string {
 	)
 }
 
-// SecurityConfig contains security-related settings
+// SecurityConfig содержит настройки безопасности
 type SecurityConfig struct {
 	KeyDir        string `yaml:"key_dir"`
 	WhitelistFile string `yaml:"whitelist_file"`
 	PeersFile     string `yaml:"peers_file"`
 }
 
-// TLSConfig contains TLS/mTLS settings
+// TLSConfig содержит настройки TLS/mTLS
 type TLSConfig struct {
 	Enabled  bool   `yaml:"enabled"`
 	CertFile string `yaml:"cert_file"`
@@ -62,14 +62,14 @@ type TLSConfig struct {
 	CAFile   string `yaml:"ca_file"`
 }
 
-// LoggingConfig contains logging settings
+// LoggingConfig содержит настройки логирования
 type LoggingConfig struct {
 	Level  string `yaml:"level"` // debug, info, warn, error
 	Format string `yaml:"format"` // text, json
 }
 
-// expandEnvWithDefaults expands environment variables with default value support
-// Supports: ${VAR}, ${VAR:default}, $VAR
+// expandEnvWithDefaults раскрывает переменные окружения с поддержкой значений по умолчанию
+// Поддерживает: ${VAR}, ${VAR:default}, $VAR
 func expandEnvWithDefaults(s string) string {
 	// Pattern for ${VAR:default} or ${VAR}
 	re := regexp.MustCompile(`\$\{([^}:]+)(?::([^}]*))?\}`)
@@ -92,18 +92,18 @@ func expandEnvWithDefaults(s string) string {
 		return defaultVal
 	})
 
-	// Also expand simple $VAR format
+	// Также раскрывает простой формат $VAR
 	return os.ExpandEnv(result)
 }
 
-// Load reads configuration from a YAML file
+// Load читает конфигурацию из YAML файла
 func Load(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	// Expand environment variables with default value support
+	// Раскрытие переменных окружения с поддержкой значений по умолчанию
 	expanded := expandEnvWithDefaults(string(data))
 
 	var cfg Config
@@ -111,13 +111,13 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to parse config file: %w", err)
 	}
 
-	// Set defaults
+	// Установка значений по умолчанию
 	cfg.setDefaults()
 
 	return &cfg, nil
 }
 
-// setDefaults sets default values for unspecified fields
+// setDefaults устанавливает значения по умолчанию для неуказанных полей
 func (c *Config) setDefaults() {
 	if c.Node.Port == 0 {
 		c.Node.Port = 50051
@@ -150,7 +150,7 @@ func (c *Config) setDefaults() {
 	}
 }
 
-// Validate checks if the configuration is valid
+// Validate проверяет корректность конфигурации
 func (c *Config) Validate() error {
 	if c.Database.Host == "" {
 		return fmt.Errorf("database.host is required")

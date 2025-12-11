@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-// AuthUnaryInterceptor validates authentication for unary RPCs
+// AuthUnaryInterceptor проверяет аутентификацию для унарных RPC
 func AuthUnaryInterceptor() grpc.UnaryServerInterceptor {
 	return func(
 		ctx context.Context,
@@ -16,7 +16,7 @@ func AuthUnaryInterceptor() grpc.UnaryServerInterceptor {
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (interface{}, error) {
-		// Skip auth for health check and node info endpoints
+		// Пропуск аутентификации для эндпоинтов проверки здоровья и информации о ноде
 		if isPublicMethod(info.FullMethod) {
 			return handler(ctx, req)
 		}
@@ -27,18 +27,18 @@ func AuthUnaryInterceptor() grpc.UnaryServerInterceptor {
 			slog.Debug("Auth failed: no metadata", "method", info.FullMethod)
 		}
 
-		// Add party ID to context if present
+		// Добавление ID участника в контекст если присутствует
 		if partyIDs := md.Get("party-id"); len(partyIDs) > 0 {
 			ctx = context.WithValue(ctx, "party_id", partyIDs[0])
 		}
 
-		// For now, we rely on mTLS and message-level signatures
-		// No additional auth required here
+		// На данный момент полагаемся на mTLS и подписи на уровне сообщений
+		// Дополнительная аутентификация здесь не требуется
 		return handler(ctx, req)
 	}
 }
 
-// AuthStreamInterceptor validates authentication for streaming RPCs
+// AuthStreamInterceptor проверяет аутентификацию для потоковых RPC
 func AuthStreamInterceptor() grpc.StreamServerInterceptor {
 	return func(
 		srv interface{},
@@ -46,20 +46,20 @@ func AuthStreamInterceptor() grpc.StreamServerInterceptor {
 		info *grpc.StreamServerInfo,
 		handler grpc.StreamHandler,
 	) error {
-		// Skip auth for public methods
+		// Пропуск аутентификации для публичных методов
 		if isPublicMethod(info.FullMethod) {
 			return handler(srv, ss)
 		}
 
 		ctx := ss.Context()
 
-		// Extract metadata
+		// Извлечение метаданных
 		md, ok := metadata.FromIncomingContext(ctx)
 		if !ok {
 			slog.Debug("Auth failed: no metadata", "method", info.FullMethod)
 		}
 
-		// Add party ID to context if present
+		// Добавление ID участника в контекст если присутствует
 		if partyIDs := md.Get("party-id"); len(partyIDs) > 0 {
 			ctx = context.WithValue(ctx, "party_id", partyIDs[0])
 		}
@@ -68,7 +68,7 @@ func AuthStreamInterceptor() grpc.StreamServerInterceptor {
 	}
 }
 
-// isPublicMethod checks if a method is public (doesn't require auth)
+// isPublicMethod проверяет, является ли метод публичным (не требует аутентификации)
 func isPublicMethod(method string) bool {
 	publicMethods := []string{
 		"/mpc.MPCNodeService/HealthCheck",
@@ -84,7 +84,7 @@ func isPublicMethod(method string) bool {
 	return false
 }
 
-// wrappedStream wraps grpc.ServerStream to allow context modification
+// wrappedStream оборачивает grpc.ServerStream для возможности модификации контекста
 type wrappedStream struct {
 	grpc.ServerStream
 	ctx context.Context

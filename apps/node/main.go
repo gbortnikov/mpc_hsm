@@ -8,26 +8,26 @@ import (
 )
 
 func main() {
-	// Parse command-line flags
+	// Разбор флагов командной строки
 	flags := app.ParseFlags()
 
-	// Load configuration
+	// Загрузка конфигурации
 	cfg, err := app.LoadConfig(flags)
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	// Setup logging early so debug logs work
+	// Настройка логирования в начале, чтобы работали отладочные логи
 	app.SetupLogging(cfg.Logging)
 	app.LogConfigInfo(cfg, flags.ConfigFile)
 
-	// Create and initialize application
+	// Создание и инициализация приложения.
 	application := app.New(cfg)
 	if err := application.Initialize(); err != nil {
 		log.Fatalf("Failed to initialize application: %v", err)
 	}
 
-	// Run application and handle shutdown
+	// Запуск приложения и обработка завершения
 	if err := application.Run(); err != nil {
 		log.Fatalf("Application error: %v", err)
 		os.Exit(1)

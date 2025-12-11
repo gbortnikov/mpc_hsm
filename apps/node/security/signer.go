@@ -10,11 +10,11 @@ import (
 
 // SignedEnvelope содержит подписанное сообщение
 type SignedEnvelope struct {
-	Payload       []byte // Оригинальное сообщение
-	SignerPartyID string // Кто подписал
-	Signature     []byte // Ed25519 подпись
+	Payload       []byte // Оригинальные данные сообщения
+	SignerPartyID string // ID участника, подписавшего сообщение
+	Signature     []byte // Подпись Ed25519
 	Timestamp     int64  // Unix timestamp в наносекундах
-	Nonce         []byte // 16 байт случайных данных
+	Nonce         []byte // 16 байт случайных данных для защиты от replay
 }
 
 // MessageSigner подписывает исходящие сообщения
@@ -31,7 +31,7 @@ func NewMessageSigner(identity *NodeIdentity) *MessageSigner {
 
 // Sign подписывает payload и возвращает SignedEnvelope
 func (ms *MessageSigner) Sign(payload []byte) (*SignedEnvelope, error) {
-	// Генерируем nonce
+	// Генерация nonce
 	nonce := make([]byte, 16)
 	if _, err := rand.Read(nonce); err != nil {
 		return nil, fmt.Errorf("failed to generate nonce: %w", err)
@@ -39,10 +39,10 @@ func (ms *MessageSigner) Sign(payload []byte) (*SignedEnvelope, error) {
 
 	timestamp := time.Now().UnixNano()
 
-	// Формируем данные для подписи: payload || timestamp || nonce
+	// Формирование данных для подписи: payload || timestamp || nonce
 	dataToSign := buildSignatureData(payload, timestamp, nonce)
 
-	// Подписываем
+	// Подписание
 	signature := ed25519.Sign(ms.identity.PrivateKey, dataToSign)
 
 	return &SignedEnvelope{
@@ -67,7 +67,7 @@ func (ms *MessageSigner) GetPublicKey() ed25519.PublicKey {
 // buildSignatureData формирует данные для подписи
 func buildSignatureData(payload []byte, timestamp int64, nonce []byte) []byte {
 	// Формат: len(payload) || payload || timestamp || nonce
-	// len используется для предотвращения атак с расширением
+	// len используется для предотвращения атак с удлинением сообщения
 	data := make([]byte, 8+len(payload)+8+len(nonce))
 
 	// Длина payload (8 байт)

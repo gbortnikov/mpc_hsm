@@ -10,13 +10,13 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// ShareStore provides methods for storing and retrieving MPC key shares
+// ShareStore предоставляет методы для хранения и получения MPC долей ключей
 type ShareStore struct {
 	pool    *pgxpool.Pool
 	queries *Queries
 }
 
-// NewShareStore creates a new ShareStore
+// NewShareStore создаёт новый ShareStore
 func NewShareStore(pool *pgxpool.Pool) *ShareStore {
 	return &ShareStore{
 		pool:    pool,
@@ -24,7 +24,7 @@ func NewShareStore(pool *pgxpool.Pool) *ShareStore {
 	}
 }
 
-// SaveShareParams contains parameters for saving a share
+// SaveShareParams параметры для сохранения доли
 type SaveShareParams struct {
 	SessionID    string
 	PartyID      string
@@ -37,7 +37,7 @@ type SaveShareParams struct {
 	SaveData     *keygen.LocalPartySaveData
 }
 
-// SaveShare saves a keygen result to the database
+// SaveShare сохраняет результат генерации ключа в базу данных
 func (s *ShareStore) SaveShare(ctx context.Context, params SaveShareParams) (*Share, error) {
 	slog.Debug("SaveShare: starting",
 		"session_id", params.SessionID,
@@ -47,7 +47,7 @@ func (s *ShareStore) SaveShare(ctx context.Context, params SaveShareParams) (*Sh
 		"total_parties", params.TotalParties,
 	)
 
-	// Serialize LocalPartySaveData to JSON
+	// Сериализация LocalPartySaveData в JSON
 	shareData, err := json.Marshal(params.SaveData)
 	if err != nil {
 		slog.Error("SaveShare: failed to marshal share data", "error", err)
@@ -87,7 +87,7 @@ func (s *ShareStore) SaveShare(ctx context.Context, params SaveShareParams) (*Sh
 	return &share, nil
 }
 
-// LoadShare loads a share and deserializes the LocalPartySaveData
+// LoadShare загружает долю и десериализует LocalPartySaveData
 func (s *ShareStore) LoadShare(ctx context.Context, sessionID, partyID string) (*keygen.LocalPartySaveData, error) {
 	slog.Debug("LoadShare: starting",
 		"session_id", sessionID,
@@ -126,7 +126,7 @@ func (s *ShareStore) LoadShare(ctx context.Context, sessionID, partyID string) (
 	return &saveData, nil
 }
 
-// LoadShareByID loads a share by its ID
+// LoadShareByID загружает долю по её ID
 func (s *ShareStore) LoadShareByID(ctx context.Context, id int64) (*Share, *keygen.LocalPartySaveData, error) {
 	share, err := s.queries.GetShareByID(ctx, id)
 	if err != nil {
@@ -141,7 +141,7 @@ func (s *ShareStore) LoadShareByID(ctx context.Context, id int64) (*Share, *keyg
 	return &share, &saveData, nil
 }
 
-// LoadShareByAddress loads shares by Ethereum address
+// LoadShareByAddress загружает доли по Ethereum адресу
 func (s *ShareStore) LoadShareByAddress(ctx context.Context, address string) ([]Share, error) {
 	shares, err := s.queries.GetSharesByAddress(ctx, address)
 	if err != nil {
@@ -150,7 +150,7 @@ func (s *ShareStore) LoadShareByAddress(ctx context.Context, address string) ([]
 	return shares, nil
 }
 
-// LoadShareDataByAddress loads the first share's SaveData by address
+// LoadShareDataByAddress загружает SaveData первой доли по адресу
 func (s *ShareStore) LoadShareDataByAddress(ctx context.Context, address string) (*keygen.LocalPartySaveData, error) {
 	shares, err := s.queries.GetSharesByAddress(ctx, address)
 	if err != nil {
@@ -168,12 +168,12 @@ func (s *ShareStore) LoadShareDataByAddress(ctx context.Context, address string)
 	return &saveData, nil
 }
 
-// GetSharesByParty returns all shares for a party
+// GetSharesByParty возвращает все доли для участника
 func (s *ShareStore) GetSharesByParty(ctx context.Context, partyID string) ([]Share, error) {
 	return s.queries.GetSharesByPartyID(ctx, partyID)
 }
 
-// ShareExists checks if a share exists
+// ShareExists проверяет существование доли
 func (s *ShareStore) ShareExists(ctx context.Context, sessionID, partyID string) (bool, error) {
 	exists, err := s.queries.ShareExists(ctx, ShareExistsParams{
 		SessionID: sessionID,
@@ -185,12 +185,12 @@ func (s *ShareStore) ShareExists(ctx context.Context, sessionID, partyID string)
 	return exists, nil
 }
 
-// DeleteShare deletes a share by ID
+// DeleteShare удаляет долю по ID
 func (s *ShareStore) DeleteShare(ctx context.Context, id int64) error {
 	return s.queries.DeleteShare(ctx, id)
 }
 
-// ListShares returns a paginated list of shares
+// ListShares возвращает постраничный список долей
 func (s *ShareStore) ListShares(ctx context.Context, limit, offset int32) ([]Share, error) {
 	return s.queries.ListShares(ctx, ListSharesParams{
 		Limit:  limit,
@@ -198,7 +198,7 @@ func (s *ShareStore) ListShares(ctx context.Context, limit, offset int32) ([]Sha
 	})
 }
 
-// Close closes the database pool
+// Close закрывает пул соединений с базой данных
 func (s *ShareStore) Close() {
 	s.pool.Close()
 }

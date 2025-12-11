@@ -20,13 +20,13 @@ type TLSConfig struct {
 
 // NewServerTLSConfig создаёт TLS конфиг для gRPC сервера с mTLS
 func NewServerTLSConfig(cfg *TLSConfig) (*tls.Config, error) {
-	// Загружаем сертификат и ключ сервера
+	// Загрузка сертификата и ключа сервера
 	cert, err := tls.LoadX509KeyPair(cfg.CertFile, cfg.KeyFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load server certificate: %w", err)
 	}
 
-	// Загружаем CA для верификации клиентов
+	// Загрузка CA для верификации клиентов
 	caCert, err := os.ReadFile(cfg.CAFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read CA certificate: %w", err)
@@ -47,13 +47,13 @@ func NewServerTLSConfig(cfg *TLSConfig) (*tls.Config, error) {
 
 // NewClientTLSConfig создаёт TLS конфиг для gRPC клиента с mTLS
 func NewClientTLSConfig(cfg *TLSConfig) (*tls.Config, error) {
-	// Загружаем сертификат и ключ клиента (для mutual auth)
+	// Загрузка сертификата и ключа клиента (для взаимной аутентификации)
 	cert, err := tls.LoadX509KeyPair(cfg.CertFile, cfg.KeyFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load client certificate: %w", err)
 	}
 
-	// Загружаем CA для верификации сервера
+	// Загрузка CA для верификации сервера
 	caCert, err := os.ReadFile(cfg.CAFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read CA certificate: %w", err)
@@ -96,7 +96,7 @@ func NewClientCredentials(cfg *TLSConfig) (credentials.TransportCredentials, err
 	return credentials.NewTLS(tlsConfig), nil
 }
 
-// InsecureCredentials возвращает небезопасные credentials (только для разработки!)
+// InsecureCredentials возвращает небезопасные учётные данные (только для разработки!)
 func InsecureCredentials() credentials.TransportCredentials {
 	return nil
 }
@@ -113,7 +113,7 @@ func ValidateTLSConfig(cfg *TLSConfig) error {
 		return fmt.Errorf("CA certificate file path is required")
 	}
 
-	// Проверяем существование файлов
+	// Проверка существования файлов
 	if _, err := os.Stat(cfg.CertFile); os.IsNotExist(err) {
 		return fmt.Errorf("certificate file does not exist: %s", cfg.CertFile)
 	}

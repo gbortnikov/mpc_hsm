@@ -10,7 +10,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// RecoveryUnaryInterceptor recovers from panics in unary RPCs
+// RecoveryUnaryInterceptor восстанавливается после паник в унарных RPC
 func RecoveryUnaryInterceptor() grpc.UnaryServerInterceptor {
 	return func(
 		ctx context.Context,
@@ -33,7 +33,7 @@ func RecoveryUnaryInterceptor() grpc.UnaryServerInterceptor {
 	}
 }
 
-// RecoveryStreamInterceptor recovers from panics in streaming RPCs
+// RecoveryStreamInterceptor восстанавливается после паник в потоковых RPC
 func RecoveryStreamInterceptor() grpc.StreamServerInterceptor {
 	return func(
 		srv interface{},

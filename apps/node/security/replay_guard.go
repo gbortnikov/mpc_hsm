@@ -43,7 +43,7 @@ func NewReplayGuard(config *ReplayGuardConfig) *ReplayGuard {
 		stopCh:          make(chan struct{}),
 	}
 
-	// Запускаем фоновую очистку
+	// Запуск фоновой очистки
 	go rg.cleanupLoop()
 
 	return rg
@@ -57,12 +57,12 @@ func (rg *ReplayGuard) Check(nonce []byte, timestamp int64) error {
 	rg.mu.Lock()
 	defer rg.mu.Unlock()
 
-	// Проверяем, не использовался ли nonce
+	// Проверка, не использовался ли nonce
 	if _, exists := rg.usedNonces[nonceHex]; exists {
 		return fmt.Errorf("nonce already used")
 	}
 
-	// Записываем nonce
+	// Запись nonce
 	rg.usedNonces[nonceHex] = timestamp
 
 	return nil

@@ -8,7 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// PoolConfig contains configuration for the database connection pool
+// PoolConfig конфигурация пула соединений с базой данных
 type PoolConfig struct {
 	Host            string
 	Port            int
@@ -22,7 +22,7 @@ type PoolConfig struct {
 	MaxConnIdleTime time.Duration
 }
 
-// DefaultPoolConfig returns default pool configuration
+// DefaultPoolConfig возвращает конфигурацию пула по умолчанию
 func DefaultPoolConfig() *PoolConfig {
 	return &PoolConfig{
 		Host:            "localhost",
@@ -38,7 +38,7 @@ func DefaultPoolConfig() *PoolConfig {
 	}
 }
 
-// ConnectionString returns the PostgreSQL connection string
+// ConnectionString возвращает строку подключения к PostgreSQL
 func (c *PoolConfig) ConnectionString() string {
 	return fmt.Sprintf(
 		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
@@ -46,7 +46,7 @@ func (c *PoolConfig) ConnectionString() string {
 	)
 }
 
-// NewPool creates a new pgxpool connection pool
+// NewPool создаёт новый пул соединений pgxpool
 func NewPool(ctx context.Context, cfg *PoolConfig) (*pgxpool.Pool, error) {
 	poolConfig, err := pgxpool.ParseConfig(cfg.ConnectionString())
 	if err != nil {
@@ -63,7 +63,7 @@ func NewPool(ctx context.Context, cfg *PoolConfig) (*pgxpool.Pool, error) {
 		return nil, fmt.Errorf("failed to create pool: %w", err)
 	}
 
-	// Test the connection
+	// Проверка соединения
 	if err := pool.Ping(ctx); err != nil {
 		pool.Close()
 		return nil, fmt.Errorf("failed to ping database: %w", err)
@@ -72,7 +72,7 @@ func NewPool(ctx context.Context, cfg *PoolConfig) (*pgxpool.Pool, error) {
 	return pool, nil
 }
 
-// NewPoolFromURL creates a pool from a connection URL
+// NewPoolFromURL создаёт пул из URL подключения
 func NewPoolFromURL(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
 	poolConfig, err := pgxpool.ParseConfig(databaseURL)
 	if err != nil {

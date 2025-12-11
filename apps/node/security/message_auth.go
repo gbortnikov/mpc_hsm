@@ -32,7 +32,7 @@ func NewMessageAuthenticator(
 	}
 }
 
-// KeygenMessageData данные для подписи keygen сообщения
+// KeygenMessageData данные для подписи сообщения генерации ключей
 type KeygenMessageData struct {
 	SessionID   string
 	FromParty   string
@@ -41,14 +41,14 @@ type KeygenMessageData struct {
 	IsBroadcast bool
 }
 
-// SignKeygenMessage подписывает данные keygen сообщения
-// Возвращает signature, timestamp, nonce
+// SignKeygenMessage подписывает данные сообщения генерации ключей
+// Возвращает подпись, timestamp, nonce
 func (ma *MessageAuthenticator) SignKeygenMessage(data *KeygenMessageData) ([]byte, int64, []byte, error) {
 	if ma.identity == nil {
 		return nil, 0, nil, fmt.Errorf("identity not configured")
 	}
 
-	// Генерируем nonce
+	// Генерация nonce
 	nonce := make([]byte, 16)
 	if _, err := rand.Read(nonce); err != nil {
 		return nil, 0, nil, fmt.Errorf("failed to generate nonce: %w", err)
@@ -56,49 +56,49 @@ func (ma *MessageAuthenticator) SignKeygenMessage(data *KeygenMessageData) ([]by
 
 	timestamp := time.Now().UnixNano()
 
-	// Формируем данные для подписи
+	// Формирование данных для подписи
 	dataToSign := buildKeygenSignatureData(data, timestamp, nonce)
 
-	// Подписываем
+	// Подписание
 	signature := ed25519.Sign(ma.identity.PrivateKey, dataToSign)
 
 	return signature, timestamp, nonce, nil
 }
 
-// VerifyKeygenMessage проверяет подпись keygen сообщения
+// VerifyKeygenMessage проверяет подпись сообщения генерации ключей
 func (ma *MessageAuthenticator) VerifyKeygenMessage(
 	data *KeygenMessageData,
 	signature []byte,
 	timestamp int64,
 	nonce []byte,
 ) error {
-	// 1. Проверяем, что отправитель в whitelist
+	// 1. Проверка, что отправитель в белом списке
 	publicKey, ok := ma.whitelist.GetPublicKey(data.FromParty)
 	if !ok {
 		return fmt.Errorf("unknown sender: %s not in whitelist", data.FromParty)
 	}
 
-	// 2. Проверяем timestamp
+	// 2. Проверка timestamp
 	now := time.Now().UnixNano()
 
-	// Сообщение из будущего?
+	// Проверка: сообщение из будущего?
 	if timestamp > now+ma.maxFuture.Nanoseconds() {
 		return fmt.Errorf("message timestamp in future")
 	}
 
-	// Сообщение слишком старое?
+	// Проверка: сообщение слишком старое?
 	if now-timestamp > ma.maxAge.Nanoseconds() {
 		return fmt.Errorf("message expired (age: %v)", time.Duration(now-timestamp))
 	}
 
-	// 3. Проверяем nonce (защита от replay)
+	// 3. Проверка nonce (защита от повторных атак)
 	if ma.replayGuard != nil {
 		if err := ma.replayGuard.Check(nonce, timestamp); err != nil {
 			return fmt.Errorf("replay detected: %w", err)
 		}
 	}
 
-	// 4. Проверяем подпись
+	// 4. Проверка подписи
 	dataToVerify := buildKeygenSignatureData(data, timestamp, nonce)
 
 	if !ed25519.Verify(publicKey, dataToVerify, signature) {
@@ -108,7 +108,7 @@ func (ma *MessageAuthenticator) VerifyKeygenMessage(
 	return nil
 }
 
-// SigningMessageData данные для подписи signing сообщения
+// SigningMessageData данные для подписи сообщения подписания
 type SigningMessageData struct {
 	SessionID   string
 	FromParty   string
@@ -117,7 +117,7 @@ type SigningMessageData struct {
 	IsBroadcast bool
 }
 
-// SignSigningMessage подписывает данные signing сообщения
+// SignSigningMessage подписывает данные сообщения подписания
 func (ma *MessageAuthenticator) SignSigningMessage(data *SigningMessageData) ([]byte, int64, []byte, error) {
 	if ma.identity == nil {
 		return nil, 0, nil, fmt.Errorf("identity not configured")
@@ -135,7 +135,7 @@ func (ma *MessageAuthenticator) SignSigningMessage(data *SigningMessageData) ([]
 	return signature, timestamp, nonce, nil
 }
 
-// VerifySigningMessage проверяет подпись signing сообщения
+// VerifySigningMessage проверяет подпись сообщения подписания
 func (ma *MessageAuthenticator) VerifySigningMessage(
 	data *SigningMessageData,
 	signature []byte,
@@ -177,7 +177,7 @@ func (ma *MessageAuthenticator) GetPartyID() string {
 	return ma.identity.PartyID
 }
 
-// buildKeygenSignatureData формирует данные для подписи keygen сообщения
+// buildKeygenSignatureData формирует данные для подписи сообщения генерации ключей
 func buildKeygenSignatureData(data *KeygenMessageData, timestamp int64, nonce []byte) []byte {
 	// Формат: "KEYGEN" || len(sessionID) || sessionID || len(fromParty) || fromParty ||
 	//         round || len(payload) || payload || isBroadcast || timestamp || nonce
@@ -235,7 +235,7 @@ func buildKeygenSignatureData(data *KeygenMessageData, timestamp int64, nonce []
 	return buf
 }
 
-// buildSigningSignatureData формирует данные для подписи signing сообщения
+// buildSigningSignatureData формирует данные для подписи сообщения подписания
 func buildSigningSignatureData(data *SigningMessageData, timestamp int64, nonce []byte) []byte {
 	prefix := []byte("SIGNING")
 	sessionIDBytes := []byte(data.SessionID)

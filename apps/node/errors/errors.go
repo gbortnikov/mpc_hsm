@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-// Error codes for application errors
+// Коды ошибок приложения
 const (
 	CodeInternal       = "INTERNAL_ERROR"
 	CodeInvalidInput   = "INVALID_INPUT"
@@ -20,15 +20,15 @@ const (
 	CodeVerification   = "VERIFICATION_ERROR"
 )
 
-// AppError represents a structured application error
+// AppError представляет структурированную ошибку приложения
 type AppError struct {
-	Code    string // Error code for programmatic handling
-	Message string // Human-readable error message
-	Err     error  // Underlying error
-	Details map[string]interface{} // Additional context
+	Code    string                 // Код ошибки для программной обработки
+	Message string                 // Читаемое сообщение об ошибке
+	Err     error                  // Базовая ошибка
+	Details map[string]interface{} // Дополнительный контекст
 }
 
-// Error implements the error interface
+// Error реализует интерфейс error
 func (e *AppError) Error() string {
 	if e.Err != nil {
 		return fmt.Sprintf("[%s] %s: %v", e.Code, e.Message, e.Err)
@@ -36,12 +36,12 @@ func (e *AppError) Error() string {
 	return fmt.Sprintf("[%s] %s", e.Code, e.Message)
 }
 
-// Unwrap returns the underlying error
+// Unwrap возвращает базовую ошибку
 func (e *AppError) Unwrap() error {
 	return e.Err
 }
 
-// WithDetail adds a detail to the error
+// WithDetail добавляет детали к ошибке
 func (e *AppError) WithDetail(key string, value interface{}) *AppError {
 	if e.Details == nil {
 		e.Details = make(map[string]interface{})
@@ -50,7 +50,7 @@ func (e *AppError) WithDetail(key string, value interface{}) *AppError {
 	return e
 }
 
-// New creates a new AppError
+// New создаёт новую AppError
 func New(code, message string) *AppError {
 	return &AppError{
 		Code:    code,
@@ -58,7 +58,7 @@ func New(code, message string) *AppError {
 	}
 }
 
-// Wrap wraps an existing error with additional context
+// Wrap оборачивает существующую ошибку с дополнительным контекстом
 func Wrap(err error, code, message string) *AppError {
 	return &AppError{
 		Code:    code,
@@ -67,7 +67,7 @@ func Wrap(err error, code, message string) *AppError {
 	}
 }
 
-// Is checks if an error matches a specific code
+// Is проверяет, соответствует ли ошибка определённому коду
 func Is(err error, code string) bool {
 	var appErr *AppError
 	if errors.As(err, &appErr) {
@@ -76,7 +76,7 @@ func Is(err error, code string) bool {
 	return false
 }
 
-// GetCode extracts the error code from an error
+// GetCode извлекает код ошибки из ошибки
 func GetCode(err error) string {
 	var appErr *AppError
 	if errors.As(err, &appErr) {
@@ -85,59 +85,59 @@ func GetCode(err error) string {
 	return CodeInternal
 }
 
-// Common error constructors
+// Конструкторы типичных ошибок
 
-// Internal creates an internal error
+// Internal создаёт внутреннюю ошибку
 func Internal(message string, err error) *AppError {
 	return Wrap(err, CodeInternal, message)
 }
 
-// InvalidInput creates an invalid input error
+// InvalidInput создаёт ошибку некорректного ввода
 func InvalidInput(message string) *AppError {
 	return New(CodeInvalidInput, message)
 }
 
-// NotFound creates a not found error
+// NotFound создаёт ошибку "не найдено"
 func NotFound(resource string) *AppError {
 	return New(CodeNotFound, fmt.Sprintf("%s not found", resource))
 }
 
-// AlreadyExists creates an already exists error
+// AlreadyExists создаёт ошибку "уже существует"
 func AlreadyExists(resource string) *AppError {
 	return New(CodeAlreadyExists, fmt.Sprintf("%s already exists", resource))
 }
 
-// Unauthorized creates an unauthorized error
+// Unauthorized создаёт ошибку авторизации
 func Unauthorized(message string) *AppError {
 	return New(CodeUnauthorized, message)
 }
 
-// Timeout creates a timeout error
+// Timeout создаёт ошибку таймаута
 func Timeout(operation string) *AppError {
 	return New(CodeTimeout, fmt.Sprintf("%s timed out", operation))
 }
 
-// SessionError creates a session error
+// SessionError создаёт ошибку сессии
 func SessionError(message string, err error) *AppError {
 	return Wrap(err, CodeSessionError, message)
 }
 
-// CryptoError creates a crypto error
+// CryptoError создаёт криптографическую ошибку
 func CryptoError(message string, err error) *AppError {
 	return Wrap(err, CodeCryptoError, message)
 }
 
-// DatabaseError creates a database error
+// DatabaseError создаёт ошибку базы данных
 func DatabaseError(message string, err error) *AppError {
 	return Wrap(err, CodeDatabaseError, message)
 }
 
-// NetworkError creates a network error
+// NetworkError создаёт сетевую ошибку
 func NetworkError(message string, err error) *AppError {
 	return Wrap(err, CodeNetworkError, message)
 }
 
-// VerificationError creates a verification error
+// VerificationError создаёт ошибку верификации
 func VerificationError(message string) *AppError {
 	return New(CodeVerification, message)
 }

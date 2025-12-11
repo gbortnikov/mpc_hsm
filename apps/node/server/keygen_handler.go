@@ -11,7 +11,7 @@ import (
 )
 
 // InitKeygen инициализирует сессию генерации ключей
-// SECURITY: Проверяет whitelist и регистрирует публичные ключи участников
+// БЕЗОПАСНОСТЬ: Проверяет белый список и регистрирует публичные ключи участников
 func (s *MPCNodeServer) InitKeygen(ctx context.Context, req *pb.InitKeygenRequest) (*pb.InitKeygenResponse, error) {
 	slog.Info("InitKeygen called",
 		"session_id", req.SessionId,
@@ -19,7 +19,7 @@ func (s *MPCNodeServer) InitKeygen(ctx context.Context, req *pb.InitKeygenReques
 		"parties_count", len(req.Parties),
 	)
 
-	// SECURITY: Регистрируем публичные ключи всех участников в whitelist
+	// БЕЗОПАСНОСТЬ: Регистрация публичных ключей всех участников в белом списке
 	if s.whitelist != nil {
 		for _, p := range req.Parties {
 			if p.SigningPublicKey != "" {
@@ -39,7 +39,7 @@ func (s *MPCNodeServer) InitKeygen(ctx context.Context, req *pb.InitKeygenReques
 	s.keygenMu.Lock()
 	defer s.keygenMu.Unlock()
 
-	// Проверяем, существует ли уже сессия
+	// Проверка существования сессии
 	if _, exists := s.keygenSessions[req.SessionId]; exists {
 		slog.Warn("InitKeygen: session already exists", "session_id", req.SessionId)
 		return &pb.InitKeygenResponse{
@@ -49,7 +49,7 @@ func (s *MPCNodeServer) InitKeygen(ctx context.Context, req *pb.InitKeygenReques
 		}, nil
 	}
 
-	// Создаём новую сессию
+	// Создание новой сессии
 	session, err := tss.NewKeygenSession(req.SessionId, 0, int(req.Threshold), len(req.Parties))
 	if err != nil {
 		slog.Error("InitKeygen: failed to create session", "session_id", req.SessionId, "error", err)
@@ -60,7 +60,7 @@ func (s *MPCNodeServer) InitKeygen(ctx context.Context, req *pb.InitKeygenReques
 		}, nil
 	}
 
-	// Генерируем предварительные параметры
+	// Генерация предварительных параметров
 	if err := session.GeneratePreParams(); err != nil {
 		slog.Error("InitKeygen: failed to generate pre-params", "session_id", req.SessionId, "error", err)
 		return &pb.InitKeygenResponse{
@@ -70,7 +70,7 @@ func (s *MPCNodeServer) InitKeygen(ctx context.Context, req *pb.InitKeygenReques
 		}, nil
 	}
 
-	// Конвертируем информацию об участниках
+	// Преобразование информации об участниках
 	parties := make([]tss.PartyInfo, len(req.Parties))
 	for i, p := range req.Parties {
 		parties[i] = tss.PartyInfo{
@@ -80,7 +80,7 @@ func (s *MPCNodeServer) InitKeygen(ctx context.Context, req *pb.InitKeygenReques
 		}
 	}
 
-	// Инициализируем сессию
+	// Инициализация сессии
 	if err := session.Initialize(s.partyID, s.findPartyIndex(req.Parties), parties); err != nil {
 		slog.Error("InitKeygen: failed to initialize session", "session_id", req.SessionId, "error", err)
 		return &pb.InitKeygenResponse{
@@ -90,7 +90,7 @@ func (s *MPCNodeServer) InitKeygen(ctx context.Context, req *pb.InitKeygenReques
 		}, nil
 	}
 
-	// Запускаем keygen
+	// Запуск генерации ключей
 	if err := session.Start(); err != nil {
 		slog.Error("InitKeygen: failed to start keygen", "session_id", req.SessionId, "error", err)
 		return &pb.InitKeygenResponse{
@@ -109,8 +109,8 @@ func (s *MPCNodeServer) InitKeygen(ctx context.Context, req *pb.InitKeygenReques
 	}, nil
 }
 
-// ProcessKeygenMessage обрабатывает входящее сообщение keygen
-// SECURITY: Проверяет подпись отправителя перед обработкой
+// ProcessKeygenMessage обрабатывает входящее сообщение генерации ключей
+// БЕЗОПАСНОСТЬ: Проверяет подпись отправителя перед обработкой
 func (s *MPCNodeServer) ProcessKeygenMessage(ctx context.Context, req *pb.KeygenMessage) (*pb.KeygenMessageResponse, error) {
 	slog.Debug("ProcessKeygenMessage called",
 		"session_id", req.SessionId,
@@ -119,7 +119,7 @@ func (s *MPCNodeServer) ProcessKeygenMessage(ctx context.Context, req *pb.Keygen
 		"is_broadcast", req.IsBroadcast,
 	)
 
-	// SECURITY: Проверяем подпись сообщения
+	// БЕЗОПАСНОСТЬ: Проверка подписи сообщения
 	if s.authenticator != nil {
 		msgData := &security.KeygenMessageData{
 			SessionID:   req.SessionId,
@@ -155,7 +155,7 @@ func (s *MPCNodeServer) ProcessKeygenMessage(ctx context.Context, req *pb.Keygen
 		}, nil
 	}
 
-	// Обрабатываем входящее сообщение
+	// Обработка входящего сообщения
 	outgoing, err := session.ProcessMessage(req.FromParty, int(req.Round), req.Payload, req.IsBroadcast)
 	if err != nil {
 		slog.Error("ProcessKeygenMessage: failed to process message",
@@ -169,7 +169,7 @@ func (s *MPCNodeServer) ProcessKeygenMessage(ctx context.Context, req *pb.Keygen
 		}, nil
 	}
 
-	// Конвертируем и подписываем исходящие сообщения
+	// Преобразование и подписание исходящих сообщений
 	pbMessages := s.signOutgoingKeygenMessages(req.SessionId, outgoing, req.Round)
 
 	return &pb.KeygenMessageResponse{
@@ -241,7 +241,7 @@ func (s *MPCNodeServer) GetKeygenResult(ctx context.Context, req *pb.GetKeygenRe
 	}, nil
 }
 
-// signOutgoingKeygenMessages подписывает исходящие keygen сообщения
+// signOutgoingKeygenMessages подписывает исходящие сообщения генерации ключей
 func (s *MPCNodeServer) signOutgoingKeygenMessages(sessionID string, outgoing []tss.OutgoingMessage, round int32) []*pb.KeygenMessage {
 	pbMessages := make([]*pb.KeygenMessage, len(outgoing))
 	for i, msg := range outgoing {
@@ -254,7 +254,7 @@ func (s *MPCNodeServer) signOutgoingKeygenMessages(sessionID string, outgoing []
 			IsBroadcast: msg.IsBroadcast,
 		}
 
-		// SECURITY: Подписываем исходящие сообщения
+		// БЕЗОПАСНОСТЬ: Подписание исходящих сообщений
 		if s.authenticator != nil {
 			msgData := &security.KeygenMessageData{
 				SessionID:   pbMsg.SessionId,

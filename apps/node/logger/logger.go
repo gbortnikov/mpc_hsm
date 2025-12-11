@@ -5,29 +5,29 @@ import (
 	"log/slog"
 )
 
-// ContextKey type for context keys
+// ContextKey тип для ключей контекста
 type contextKey string
 
 const (
-	// RequestIDKey is the context key for request IDs
+	// RequestIDKey ключ контекста для ID запросов
 	RequestIDKey contextKey = "request_id"
-	// SessionIDKey is the context key for session IDs
+	// SessionIDKey ключ контекста для ID сессий
 	SessionIDKey contextKey = "session_id"
-	// PartyIDKey is the context key for party IDs
+	// PartyIDKey ключ контекста для ID участников
 	PartyIDKey contextKey = "party_id"
 )
 
-// Logger wraps slog.Logger with context awareness
+// Logger обёртка над slog.Logger с поддержкой контекста
 type Logger struct {
 	logger *slog.Logger
 }
 
-// New creates a new contextual logger
+// New создаёт новый контекстный логгер
 func New(logger *slog.Logger) *Logger {
 	return &Logger{logger: logger}
 }
 
-// WithContext extracts contextual information and returns a logger with those attributes
+// WithContext извлекает контекстную информацию и возвращает логгер с этими атрибутами
 func (l *Logger) WithContext(ctx context.Context) *slog.Logger {
 	attrs := make([]any, 0, 6)
 
@@ -47,37 +47,37 @@ func (l *Logger) WithContext(ctx context.Context) *slog.Logger {
 	return l.logger
 }
 
-// Debug logs a debug message with context
+// Debug записывает отладочное сообщение с контекстом
 func (l *Logger) Debug(ctx context.Context, msg string, args ...any) {
 	l.WithContext(ctx).Debug(msg, args...)
 }
 
-// Info logs an info message with context
+// Info записывает информационное сообщение с контекстом
 func (l *Logger) Info(ctx context.Context, msg string, args ...any) {
 	l.WithContext(ctx).Info(msg, args...)
 }
 
-// Warn logs a warning message with context
+// Warn записывает предупреждение с контекстом
 func (l *Logger) Warn(ctx context.Context, msg string, args ...any) {
 	l.WithContext(ctx).Warn(msg, args...)
 }
 
-// Error logs an error message with context
+// Error записывает сообщение об ошибке с контекстом
 func (l *Logger) Error(ctx context.Context, msg string, args ...any) {
 	l.WithContext(ctx).Error(msg, args...)
 }
 
-// WithRequestID adds a request ID to the context
+// WithRequestID добавляет ID запроса в контекст
 func WithRequestID(ctx context.Context, requestID string) context.Context {
 	return context.WithValue(ctx, RequestIDKey, requestID)
 }
 
-// WithSessionID adds a session ID to the context
+// WithSessionID добавляет ID сессии в контекст
 func WithSessionID(ctx context.Context, sessionID string) context.Context {
 	return context.WithValue(ctx, SessionIDKey, sessionID)
 }
 
-// WithPartyID adds a party ID to the context
+// WithPartyID добавляет ID участника в контекст
 func WithPartyID(ctx context.Context, partyID string) context.Context {
 	return context.WithValue(ctx, PartyIDKey, partyID)
 }

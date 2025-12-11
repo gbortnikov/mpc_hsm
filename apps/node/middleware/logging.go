@@ -10,7 +10,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// LoggingUnaryInterceptor logs all unary RPC calls
+// LoggingUnaryInterceptor логирует все унарные RPC вызовы
 func LoggingUnaryInterceptor() grpc.UnaryServerInterceptor {
 	return func(
 		ctx context.Context,
@@ -24,10 +24,10 @@ func LoggingUnaryInterceptor() grpc.UnaryServerInterceptor {
 			"method", info.FullMethod,
 		)
 
-		// Call the handler
+		// Вызов обработчика
 		resp, err := handler(ctx, req)
 
-		// Log completion
+		// Логирование завершения
 		duration := time.Since(start)
 		code := codes.OK
 		if err != nil {
@@ -50,7 +50,7 @@ func LoggingUnaryInterceptor() grpc.UnaryServerInterceptor {
 	}
 }
 
-// LoggingStreamInterceptor logs all streaming RPC calls
+// LoggingStreamInterceptor логирует все потоковые RPC вызовы
 func LoggingStreamInterceptor() grpc.StreamServerInterceptor {
 	return func(
 		srv interface{},
@@ -66,10 +66,10 @@ func LoggingStreamInterceptor() grpc.StreamServerInterceptor {
 			"is_server_stream", info.IsServerStream,
 		)
 
-		// Call the handler
+		// Вызов обработчика
 		err := handler(srv, ss)
 
-		// Log completion
+		// Логирование завершения
 		duration := time.Since(start)
 		code := codes.OK
 		if err != nil {

@@ -30,17 +30,17 @@ type SigningSession struct {
 	mu            sync.RWMutex
 	parties       []*tss.PartyID
 
-	// Буфер для исходящих сообщений
+	// Буфер исходящих сообщений
 	outgoingBuffer []OutgoingMessage
 	bufferMu       sync.Mutex
 }
 
-// SigningResult результат подписания
+// SigningResult представляет результат подписания
 type SigningResult struct {
-	Signature string // полная подпись в hex
+	Signature string // Полная подпись в hex
 	R         string
 	S         string
-	V         int32 // recovery id
+	V         int32 // Идентификатор восстановления
 }
 
 // NewSigningSession создаёт новую сессию подписания
@@ -105,9 +105,9 @@ func (ss *SigningSession) Initialize(partyID string, parties []PartyInfo) error 
 	sortedParties := tss.SortPartyIDs(ss.parties)
 	ctx := tss.NewPeerContext(sortedParties)
 
-	// Threshold берём из KeyData - должен соответствовать keygen threshold
-	// В TSS библиотеке threshold = t, где для подписания нужно t+1 участников
-	// KeyData.Ks содержит индексы всех участников keygen
+	// Threshold берётся из KeyData - должен соответствовать threshold генерации ключей
+	// В TSS-библиотеке threshold = t, где для подписания необходимо t+1 участников
+	// KeyData.Ks содержит индексы всех участников генерации ключей
 	threshold := totalParties - 1
 
 	slog.Debug("SigningSession.Initialize: using threshold",
@@ -116,13 +116,13 @@ func (ss *SigningSession) Initialize(partyID string, parties []PartyInfo) error 
 		"key_ks_count", len(ss.KeyData.Ks),
 	)
 
-	// Создаём параметры
+	// Создание параметров
 	params := tss.NewParameters(tss.S256(), ctx, ss.PartyID, totalParties, threshold)
 
-	// Преобразуем сообщение в big.Int
+	// Преобразование сообщения в big.Int
 	msgBigInt := new(big.Int).SetBytes(ss.MessageToSign)
 
-	// Создаём party для подписания
+	// Создание party для подписания
 	ss.Party = signing.NewLocalParty(msgBigInt, params, *ss.KeyData, ss.OutCh, ss.EndCh).(*signing.LocalParty)
 
 	slog.Debug("SigningSession.Initialize: completed",
@@ -146,10 +146,10 @@ func (ss *SigningSession) Start() error {
 	party := ss.Party
 	ss.mu.Unlock()
 
-	// Запускаем горутину для буферизации исходящих сообщений ДО party.Start()
+	// Запуск горутины для буферизации исходящих сообщений до party.Start()
 	go ss.bufferOutgoingMessages()
 
-	// Даём время горутине буферизации запуститься
+	// Ожидание запуска горутины буферизации
 	time.Sleep(10 * time.Millisecond)
 
 	go func() {
@@ -163,14 +163,14 @@ func (ss *SigningSession) Start() error {
 		}
 	}()
 
-	// Слушаем завершение
+	// Ожидание завершения
 	go ss.waitForCompletion()
 
 	slog.Debug("SigningSession.Start: signing protocol started", "session_id", ss.SessionID)
 	return nil
 }
 
-// waitForCompletion ожидает завершения подписания
+// waitForCompletion ожидает завершения процесса подписания
 func (ss *SigningSession) waitForCompletion() {
 	slog.Debug("SigningSession.waitForCompletion: waiting", "session_id", ss.SessionID)
 
@@ -224,7 +224,7 @@ func (ss *SigningSession) ProcessMessage(fromPartyID string, round int, payload 
 		return nil, fmt.Errorf("party not initialized")
 	}
 
-	// Находим отправителя
+	// Поиск отправителя
 	var fromParty *tss.PartyID
 	for _, p := range ss.parties {
 		if p.Id == fromPartyID {
@@ -240,7 +240,7 @@ func (ss *SigningSession) ProcessMessage(fromPartyID string, round int, payload 
 		return nil, fmt.Errorf("unknown sender party: %s", fromPartyID)
 	}
 
-	// Обновляем party
+	// Обновление party
 	ok, err := party.UpdateFromBytes(payload, fromParty, isBroadcast)
 	if err != nil {
 		slog.Error("SigningSession.ProcessMessage: UpdateFromBytes failed",
@@ -260,7 +260,7 @@ func (ss *SigningSession) ProcessMessage(fromPartyID string, round int, payload 
 	return ss.collectOutgoingMessages(), nil
 }
 
-// bufferOutgoingMessages читает сообщения из канала и складывает в буфер
+// bufferOutgoingMessages читает сообщения из канала и помещает в буфер
 func (ss *SigningSession) bufferOutgoingMessages() {
 	for {
 		select {
@@ -295,14 +295,14 @@ func (ss *SigningSession) bufferOutgoingMessages() {
 			ss.bufferMu.Unlock()
 
 		default:
-			// Проверяем, завершена ли сессия
+			// Проверка завершения сессии
 			ss.mu.RLock()
 			completed := ss.Completed
 			ss.mu.RUnlock()
 			if completed {
 				return
 			}
-			// Небольшая пауза, чтобы не грузить CPU
+			// Небольшая пауза для снижения нагрузки на CPU
 			time.Sleep(10 * time.Millisecond)
 		}
 	}
@@ -320,8 +320,8 @@ func (ss *SigningSession) GetOutgoingMessages() []OutgoingMessage {
 
 // collectOutgoingMessages собирает сообщения из буфера (для совместимости с ProcessMessage)
 func (ss *SigningSession) collectOutgoingMessages() []OutgoingMessage {
-	// Даём время для буферизации сообщений после UpdateFromBytes
-	// TSS библиотека генерирует сообщения асинхронно
+	// Ожидание буферизации сообщений после UpdateFromBytes
+	// TSS-библиотека генерирует сообщения асинхронно
 	time.Sleep(500 * time.Millisecond)
 	messages := ss.GetOutgoingMessages()
 	slog.Debug("SigningSession.collectOutgoingMessages: collected messages",
@@ -331,7 +331,7 @@ func (ss *SigningSession) collectOutgoingMessages() []OutgoingMessage {
 	return messages
 }
 
-// IsCompleted проверяет завершение
+// IsCompleted проверяет завершение сессии
 func (ss *SigningSession) IsCompleted() bool {
 	ss.mu.RLock()
 	defer ss.mu.RUnlock()
@@ -355,12 +355,12 @@ func (ss *SigningSession) GetResult() (*SigningResult, error) {
 		return nil, fmt.Errorf("no signature data")
 	}
 
-	// Извлекаем компоненты подписи
+	// Извлечение компонентов подписи
 	r := ss.SignatureData.R
 	s := ss.SignatureData.S
 	v := ss.SignatureData.SignatureRecovery
 
-	// Формируем полную подпись (R || S || V)
+	// Формирование полной подписи (R || S || V)
 	signature := append(r, s...)
 	signature = append(signature, v...)
 

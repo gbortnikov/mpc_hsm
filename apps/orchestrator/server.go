@@ -21,6 +21,33 @@ import (
 	"github.com/vektah/gqlparser/v2/ast"
 )
 
+// corsMiddleware добавляет CORS заголовки для всех запросов
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Разрешаем все источники для разработки
+		// В продакшене следует ограничить список источников
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			origin = "*"
+		}
+
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization, X-CSRF-Token")
+		w.Header().Set("Access-Control-Expose-Headers", "Content-Length")
+		w.Header().Set("Access-Control-Max-Age", "86400")
+
+		// Обрабатываем preflight запросы
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	// Загружаем переменные окружения из .env файла
 	// Игнорируем ошибку, если файл не найден (переменные могут быть установлены другим способом)
@@ -78,8 +105,8 @@ func main() {
 	// Маршруты
 	mux := http.NewServeMux()
 
-	// GraphQL endpoint
-	mux.Handle("/query", srv)
+	// GraphQL endpoint с CORS
+	mux.Handle("/query", corsMiddleware(srv))
 
 	// Health check endpoint
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {

@@ -251,11 +251,11 @@ func (r *mutationResolver) StartKeygen(ctx context.Context, input model.StartKey
 		}
 
 		logger.Debug("Keygen итерация", map[string]interface{}{
-			"session_id":     sessionID,
-			"iteration":      iteration,
-			"sent_messages":  totalMessages,
-			"recv_messages":  len(pendingMessages),
-			"all_completed":  allCompleted,
+			"session_id":    sessionID,
+			"iteration":     iteration,
+			"sent_messages": totalMessages,
+			"recv_messages": len(pendingMessages),
+			"all_completed": allCompleted,
 		})
 
 		if totalMessages == 0 && len(pendingMessages) == 0 {
@@ -263,7 +263,7 @@ func (r *mutationResolver) StartKeygen(ctx context.Context, input model.StartKey
 			// Если слишком много итераций подряд без сообщений - что-то пошло не так
 			if noMessageIterations > noMessageTimeout {
 				logger.Warn("Слишком много итераций без сообщений", map[string]interface{}{
-					"session_id":           sessionID,
+					"session_id":            sessionID,
 					"no_message_iterations": noMessageIterations,
 				})
 				break

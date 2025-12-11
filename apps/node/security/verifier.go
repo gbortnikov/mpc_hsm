@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// VerificationError типы ошибок верификации
+// VerificationError тип ошибки верификации
 type VerificationError struct {
 	Code    string
 	Message string
@@ -29,13 +29,13 @@ type MessageVerifier struct {
 	whitelist   *PartyWhitelist
 	replayGuard *ReplayGuard
 	maxAge      time.Duration
-	maxFuture   time.Duration // максимальное отклонение в будущее (для clock skew)
+	maxFuture   time.Duration // максимальное отклонение в будущее (для расхождения часов)
 }
 
 // VerifierConfig конфигурация верификатора
 type VerifierConfig struct {
-	MaxAge    time.Duration // максимальный возраст сообщения
-	MaxFuture time.Duration // максимальное отклонение в будущее
+	MaxAge    time.Duration // Максимальный возраст сообщения
+	MaxFuture time.Duration // Максимальное отклонение в будущее
 }
 
 // DefaultVerifierConfig возвращает конфигурацию по умолчанию
@@ -63,7 +63,7 @@ func NewMessageVerifier(whitelist *PartyWhitelist, replayGuard *ReplayGuard, con
 // Verify проверяет подписанное сообщение
 // Возвращает payload если верификация успешна
 func (mv *MessageVerifier) Verify(envelope *SignedEnvelope) ([]byte, error) {
-	// 1. Проверяем, что отправитель в whitelist
+	// 1. Проверка, что отправитель в белом списке
 	publicKey, ok := mv.whitelist.GetPublicKey(envelope.SignerPartyID)
 	if !ok {
 		return nil, ErrUnknownSigner
@@ -73,22 +73,22 @@ func (mv *MessageVerifier) Verify(envelope *SignedEnvelope) ([]byte, error) {
 	now := time.Now().UnixNano()
 	messageTime := envelope.Timestamp
 
-	// Сообщение из будущего?
+	// Проверка: сообщение из будущего?
 	if messageTime > now+mv.maxFuture.Nanoseconds() {
 		return nil, ErrMessageFromFuture
 	}
 
-	// Сообщение слишком старое?
+	// Проверка: сообщение слишком старое?
 	if now-messageTime > mv.maxAge.Nanoseconds() {
 		return nil, ErrMessageExpired
 	}
 
-	// 3. Проверяем nonce (защита от replay)
+	// 3. Проверка nonce (защита от повторных атак)
 	if err := mv.replayGuard.Check(envelope.Nonce, envelope.Timestamp); err != nil {
 		return nil, ErrReplayDetected
 	}
 
-	// 4. Проверяем подпись
+	// 4. Проверка подписи
 	dataToVerify := buildSignatureData(envelope.Payload, envelope.Timestamp, envelope.Nonce)
 
 	if !ed25519.Verify(publicKey, dataToVerify, envelope.Signature) {
@@ -98,16 +98,16 @@ func (mv *MessageVerifier) Verify(envelope *SignedEnvelope) ([]byte, error) {
 	return envelope.Payload, nil
 }
 
-// VerifyWithoutReplay проверяет сообщение без проверки replay
+// VerifyWithoutReplay проверяет сообщение без проверки повторных атак
 // Полезно для идемпотентных операций
 func (mv *MessageVerifier) VerifyWithoutReplay(envelope *SignedEnvelope) ([]byte, error) {
-	// 1. Проверяем whitelist
+	// 1. Проверка белого списка
 	publicKey, ok := mv.whitelist.GetPublicKey(envelope.SignerPartyID)
 	if !ok {
 		return nil, ErrUnknownSigner
 	}
 
-	// 2. Проверяем timestamp
+	// 2. Проверка timestamp
 	now := time.Now().UnixNano()
 	messageTime := envelope.Timestamp
 
@@ -119,7 +119,7 @@ func (mv *MessageVerifier) VerifyWithoutReplay(envelope *SignedEnvelope) ([]byte
 		return nil, ErrMessageExpired
 	}
 
-	// 3. Проверяем подпись
+	// 3. Проверка подписи
 	dataToVerify := buildSignatureData(envelope.Payload, envelope.Timestamp, envelope.Nonce)
 
 	if !ed25519.Verify(publicKey, dataToVerify, envelope.Signature) {

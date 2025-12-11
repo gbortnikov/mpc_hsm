@@ -31,15 +31,15 @@ type KeygenSession struct {
 	threshold    int
 	totalParties int
 
-	// Буфер для исходящих сообщений
+	// Буфер исходящих сообщений
 	outgoingBuffer []OutgoingMessage
 	bufferMu       sync.Mutex
 
-	// Флаг сохранения в БД
+	// Признак сохранения в БД
 	saved bool
 }
 
-// KeygenResult содержит результат генерации ключей для одной ноды
+// KeygenResult результат генерации ключей для одной ноды
 type KeygenResult struct {
 	PublicKey    string
 	Address      string
@@ -65,7 +65,7 @@ func NewKeygenSession(sessionID string, partyIndex int, threshold, totalParties 
 	}, nil
 }
 
-// GeneratePreParams генерирует предварительные параметры (можно делать офлайн)
+// GeneratePreParams генерирует предварительные параметры (можно выполнять офлайн)
 func (ks *KeygenSession) GeneratePreParams() error {
 	ks.mu.Lock()
 	defer ks.mu.Unlock()
@@ -124,7 +124,7 @@ func (ks *KeygenSession) Start() error {
 	party := ks.Party
 	ks.mu.Unlock()
 
-	// Запускаем горутину для буферизации исходящих сообщений ДО party.Start()
+	// Запускаем горутину для буферизации исходящих сообщений до party.Start()
 	go ks.bufferOutgoingMessages()
 
 	// Даём время горутине буферизации запуститься
@@ -136,13 +136,13 @@ func (ks *KeygenSession) Start() error {
 		}
 	}()
 
-	// Слушаем завершение в отдельной горутине
+	// Ожидаем завершения в отдельной горутине
 	go ks.waitForCompletion()
 
 	return nil
 }
 
-// waitForCompletion ожидает завершения keygen
+// waitForCompletion ожидает завершения генерации ключей
 func (ks *KeygenSession) waitForCompletion() {
 	select {
 	case data := <-ks.EndCh:
@@ -175,7 +175,7 @@ func (ks *KeygenSession) ProcessMessage(fromPartyID string, round int, payload [
 		return nil, fmt.Errorf("party not initialized")
 	}
 
-	// Находим отправителя
+	// Поиск отправителя
 	var fromParty *tss.PartyID
 	for _, p := range ks.parties {
 		if p.Id == fromPartyID {
@@ -194,7 +194,7 @@ func (ks *KeygenSession) ProcessMessage(fromPartyID string, round int, payload [
 		"payload_len", len(payload),
 	)
 
-	// Обновляем party с входящими данными
+	// Обновление party входящими данными
 	ok, err := party.UpdateFromBytes(payload, fromParty, isBroadcast)
 	if err != nil {
 		slog.Error("ProcessMessage: UpdateFromBytes failed",
@@ -211,11 +211,11 @@ func (ks *KeygenSession) ProcessMessage(fromPartyID string, round int, payload [
 		"ok", ok,
 	)
 
-	// Собираем исходящие сообщения
+	// Сбор исходящих сообщений
 	return ks.collectOutgoingMessages(), nil
 }
 
-// bufferOutgoingMessages читает сообщения из канала и складывает в буфер
+// bufferOutgoingMessages читает сообщения из канала и помещает в буфер
 func (ks *KeygenSession) bufferOutgoingMessages() {
 	for {
 		select {
@@ -250,14 +250,14 @@ func (ks *KeygenSession) bufferOutgoingMessages() {
 			ks.bufferMu.Unlock()
 
 		default:
-			// Проверяем, завершена ли сессия
+			// Проверка завершения сессии
 			ks.mu.RLock()
 			completed := ks.Completed
 			ks.mu.RUnlock()
 			if completed {
 				return
 			}
-			// Небольшая пауза, чтобы не грузить CPU
+			// Небольшая пауза для снижения нагрузки на CPU
 			time.Sleep(10 * time.Millisecond)
 		}
 	}
@@ -273,10 +273,10 @@ func (ks *KeygenSession) GetOutgoingMessages() []OutgoingMessage {
 	return messages
 }
 
-// collectOutgoingMessages собирает сообщения из канала (для совместимости с ProcessMessage)
+// collectOutgoingMessages собирает сообщения из буфера (для совместимости с ProcessMessage)
 func (ks *KeygenSession) collectOutgoingMessages() []OutgoingMessage {
-	// Даём время для буферизации сообщений после UpdateFromBytes
-	// TSS библиотека генерирует сообщения асинхронно
+	// Ожидание буферизации сообщений после UpdateFromBytes
+	// TSS-библиотека генерирует сообщения асинхронно
 	time.Sleep(500 * time.Millisecond)
 	messages := ks.GetOutgoingMessages()
 	slog.Debug("collectOutgoingMessages: collected messages",
@@ -286,14 +286,14 @@ func (ks *KeygenSession) collectOutgoingMessages() []OutgoingMessage {
 	return messages
 }
 
-// IsCompleted проверяет, завершена ли сессия
+// IsCompleted проверяет завершение сессии
 func (ks *KeygenSession) IsCompleted() bool {
 	ks.mu.RLock()
 	defer ks.mu.RUnlock()
 	return ks.Completed
 }
 
-// GetResult возвращает результат keygen
+// GetResult возвращает результат генерации ключей
 func (ks *KeygenSession) GetResult() (*KeygenResult, error) {
 	ks.mu.RLock()
 	defer ks.mu.RUnlock()
@@ -310,7 +310,7 @@ func (ks *KeygenSession) GetResult() (*KeygenResult, error) {
 		return nil, fmt.Errorf("no saved data")
 	}
 
-	// Получаем публичный ключ
+	// Получение публичного ключа
 	pubKey := ks.SavedData.ECDSAPub
 	pkX, pkY := pubKey.X(), pubKey.Y()
 
@@ -320,14 +320,14 @@ func (ks *KeygenSession) GetResult() (*KeygenResult, error) {
 		Y:     pkY,
 	}
 
-	// Кодируем публичный ключ
+	// Кодирование публичного ключа
 	pubKeyBytes := append(pk.X.Bytes(), pk.Y.Bytes()...)
 	pubKeyHex := hex.EncodeToString(pubKeyBytes)
 
-	// Генерируем Ethereum адрес
+	// Генерация Ethereum-адреса
 	address := PublicKeyToAddress(&pk)
 
-	// Публичная доля
+	// Публичная доля ключа
 	publicShare := hex.EncodeToString(ks.SavedData.ShareID.Bytes())
 
 	return &KeygenResult{
@@ -340,35 +340,35 @@ func (ks *KeygenSession) GetResult() (*KeygenResult, error) {
 	}, nil
 }
 
-// GetSavedData возвращает сохранённые данные для последующего использования
+// GetSavedData возвращает сохранённые данные для дальнейшего использования
 func (ks *KeygenSession) GetSavedData() *keygen.LocalPartySaveData {
 	ks.mu.RLock()
 	defer ks.mu.RUnlock()
 	return ks.SavedData
 }
 
-// IsSaved проверяет, был ли share уже сохранён в БД
+// IsSaved проверяет, была ли доля уже сохранена в БД
 func (ks *KeygenSession) IsSaved() bool {
 	ks.mu.RLock()
 	defer ks.mu.RUnlock()
 	return ks.saved
 }
 
-// MarkSaved отмечает, что share был сохранён в БД
+// MarkSaved отмечает, что доля была сохранена в БД
 func (ks *KeygenSession) MarkSaved() {
 	ks.mu.Lock()
 	defer ks.mu.Unlock()
 	ks.saved = true
 }
 
-// PartyInfo информация об участнике
+// PartyInfo содержит информацию об участнике
 type PartyInfo struct {
 	PartyID    string
 	PartyIndex int
 	Address    string
 }
 
-// OutgoingMessage исходящее сообщение для других участников
+// OutgoingMessage представляет исходящее сообщение для других участников
 type OutgoingMessage struct {
 	FromParty   string
 	ToParties   []string
@@ -376,7 +376,7 @@ type OutgoingMessage struct {
 	IsBroadcast bool
 }
 
-// PublicKeyToAddress конвертирует ECDSA публичный ключ в Ethereum адрес
+// PublicKeyToAddress преобразует публичный ключ ECDSA в Ethereum-адрес
 func PublicKeyToAddress(pubKey *ecdsa.PublicKey) string {
 	paddedPubKey := make([]byte, 64)
 	copy(paddedPubKey[32-len(pubKey.X.Bytes()):32], pubKey.X.Bytes())

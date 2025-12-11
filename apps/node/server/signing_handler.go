@@ -16,7 +16,7 @@ func (s *MPCNodeServer) InitSigning(ctx context.Context, req *pb.InitSigningRequ
 	s.signingMu.Lock()
 	defer s.signingMu.Unlock()
 
-	// Проверяем существование сессии
+	// Проверка существования сессии
 	if _, exists := s.signingSessions[req.SessionId]; exists {
 		return &pb.InitSigningResponse{
 			Success:      false,
@@ -25,7 +25,7 @@ func (s *MPCNodeServer) InitSigning(ctx context.Context, req *pb.InitSigningRequ
 		}, nil
 	}
 
-	// Загружаем ключ из базы данных по адресу
+	// Загрузка ключа из базы данных по адресу
 	keyData, err := s.shareStore.LoadShareDataByAddress(ctx, req.KeyId)
 	if err != nil {
 		slog.Error("InitSigning: failed to load share from database",
@@ -40,7 +40,7 @@ func (s *MPCNodeServer) InitSigning(ctx context.Context, req *pb.InitSigningRequ
 	}
 	slog.Info("InitSigning: loaded share from database", "address", req.KeyId)
 
-	// Создаём сессию подписания
+	// Создание сессии подписания
 	session, err := tss.NewSigningSession(req.SessionId, keyData, req.MessageToSign)
 	if err != nil {
 		return &pb.InitSigningResponse{
@@ -50,7 +50,7 @@ func (s *MPCNodeServer) InitSigning(ctx context.Context, req *pb.InitSigningRequ
 		}, nil
 	}
 
-	// Конвертируем участников
+	// Преобразование участников
 	parties := make([]tss.PartyInfo, len(req.Parties))
 	for i, p := range req.Parties {
 		parties[i] = tss.PartyInfo{
@@ -60,7 +60,7 @@ func (s *MPCNodeServer) InitSigning(ctx context.Context, req *pb.InitSigningRequ
 		}
 	}
 
-	// Инициализируем
+	// Инициализация
 	if err := session.Initialize(s.partyID, parties); err != nil {
 		return &pb.InitSigningResponse{
 			Success:      false,
@@ -69,7 +69,7 @@ func (s *MPCNodeServer) InitSigning(ctx context.Context, req *pb.InitSigningRequ
 		}, nil
 	}
 
-	// Запускаем
+	// Запуск
 	if err := session.Start(); err != nil {
 		return &pb.InitSigningResponse{
 			Success:      false,
@@ -87,7 +87,7 @@ func (s *MPCNodeServer) InitSigning(ctx context.Context, req *pb.InitSigningRequ
 }
 
 // ProcessSigningMessage обрабатывает сообщение подписания
-// SECURITY: Проверяет подпись отправителя перед обработкой
+// БЕЗОПАСНОСТЬ: Проверяет подпись отправителя перед обработкой
 func (s *MPCNodeServer) ProcessSigningMessage(ctx context.Context, req *pb.SigningMessage) (*pb.SigningMessageResponse, error) {
 	slog.Debug("ProcessSigningMessage called",
 		"session_id", req.SessionId,
@@ -96,7 +96,7 @@ func (s *MPCNodeServer) ProcessSigningMessage(ctx context.Context, req *pb.Signi
 		"is_broadcast", req.IsBroadcast,
 	)
 
-	// SECURITY: Проверяем подпись сообщения
+	// БЕЗОПАСНОСТЬ: Проверка подписи сообщения
 	if s.authenticator != nil {
 		msgData := &security.SigningMessageData{
 			SessionID:   req.SessionId,
@@ -144,7 +144,7 @@ func (s *MPCNodeServer) ProcessSigningMessage(ctx context.Context, req *pb.Signi
 		}, nil
 	}
 
-	// Конвертируем и подписываем исходящие сообщения
+	// Преобразование и подписание исходящих сообщений
 	pbMessages := s.signOutgoingSigningMessages(req.SessionId, outgoing, req.Round)
 
 	return &pb.SigningMessageResponse{
@@ -205,7 +205,7 @@ func (s *MPCNodeServer) GetSigningResult(ctx context.Context, req *pb.GetSigning
 	}, nil
 }
 
-// signOutgoingSigningMessages подписывает исходящие signing сообщения
+// signOutgoingSigningMessages подписывает исходящие сообщения подписания
 func (s *MPCNodeServer) signOutgoingSigningMessages(sessionID string, outgoing []tss.OutgoingMessage, round int32) []*pb.SigningMessage {
 	pbMessages := make([]*pb.SigningMessage, len(outgoing))
 	for i, msg := range outgoing {
@@ -218,7 +218,7 @@ func (s *MPCNodeServer) signOutgoingSigningMessages(sessionID string, outgoing [
 			IsBroadcast: msg.IsBroadcast,
 		}
 
-		// SECURITY: Подписываем исходящие сообщения
+		// БЕЗОПАСНОСТЬ: Подписание исходящих сообщений
 		if s.authenticator != nil {
 			msgData := &security.SigningMessageData{
 				SessionID:   pbMsg.SessionId,
@@ -240,16 +240,16 @@ func (s *MPCNodeServer) signOutgoingSigningMessages(sessionID string, outgoing [
 	return pbMessages
 }
 
-// saveKeygenResult сохраняет результат keygen в базу данных
+// saveKeygenResult сохраняет результат генерации ключей в базу данных
 func (s *MPCNodeServer) saveKeygenResult(ctx context.Context, sessionID string, session *tss.KeygenSession, result *tss.KeygenResult) error {
-	// Проверяем, не сохранён ли share уже
+	// Проверка, не сохранена ли доля уже
 	if session.IsSaved() {
 		return nil
 	}
 
 	savedData := session.GetSavedData()
 
-	// Сохраняем share в базу данных
+	// Сохранение доли в базу данных
 	_, err := s.shareStore.SaveShare(ctx, db.SaveShareParams{
 		SessionID:    sessionID,
 		PartyID:      s.partyID,

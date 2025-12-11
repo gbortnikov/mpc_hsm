@@ -9,7 +9,7 @@ import (
 	"github.com/mpc_hsm/node/config"
 )
 
-// CLIFlags holds all CLI flag values
+// CLIFlags содержит все значения флагов командной строки
 type CLIFlags struct {
 	ConfigFile  string
 	Port        int
@@ -19,7 +19,7 @@ type CLIFlags struct {
 	Debug       bool
 }
 
-// ParseFlags parses command-line flags and returns CLIFlags
+// ParseFlags разбирает флаги командной строки и возвращает CLIFlags
 func ParseFlags() *CLIFlags {
 	flags := &CLIFlags{}
 
@@ -35,18 +35,18 @@ func ParseFlags() *CLIFlags {
 	return flags
 }
 
-// LoadConfig loads configuration from file or environment and applies CLI overrides
+// LoadConfig загружает конфигурацию из файла или окружения и применяет переопределения из CLI
 func LoadConfig(flags *CLIFlags) (*config.Config, error) {
-	// Load base configuration
+	// Загрузка базовой конфигурации
 	cfg, err := loadBaseConfig(flags.ConfigFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
 
-	// Apply CLI overrides
+	// Применение переопределений из CLI
 	applyFlagOverrides(cfg, flags)
 
-	// Generate default IDs if not specified
+	// Генерация ID по умолчанию, если не указаны
 	if cfg.Node.ID == "" {
 		cfg.Node.ID = fmt.Sprintf("node_%d", cfg.Node.Port)
 	}
@@ -57,23 +57,23 @@ func LoadConfig(flags *CLIFlags) (*config.Config, error) {
 	return cfg, nil
 }
 
-// loadBaseConfig loads configuration from file or returns default
+// loadBaseConfig загружает конфигурацию из файла или возвращает значения по умолчанию
 func loadBaseConfig(configFile string) (*config.Config, error) {
-	// Try explicit config file
+	// Попытка загрузки явно указанного файла конфигурации
 	if configFile != "" {
 		return config.Load(configFile)
 	}
 
-	// Try environment variable
+	// Попытка загрузки из переменной окружения
 	if envConfig := os.Getenv("MPC_NODE_CONFIG"); envConfig != "" {
 		return config.Load(envConfig)
 	}
 
-	// Return default configuration
+	// Возврат конфигурации по умолчанию
 	return getDefaultConfig(), nil
 }
 
-// getDefaultConfig returns default configuration with environment variables
+// getDefaultConfig возвращает конфигурацию по умолчанию с переменными окружения
 func getDefaultConfig() *config.Config {
 	return &config.Config{
 		Node: config.NodeConfig{
@@ -96,7 +96,7 @@ func getDefaultConfig() *config.Config {
 	}
 }
 
-// applyFlagOverrides applies CLI flag values to configuration
+// applyFlagOverrides применяет значения флагов CLI к конфигурации
 func applyFlagOverrides(cfg *config.Config, flags *CLIFlags) {
 	if flags.Debug {
 		cfg.Logging.Level = "debug"
@@ -114,10 +114,10 @@ func applyFlagOverrides(cfg *config.Config, flags *CLIFlags) {
 		cfg.Node.PartyID = flags.PartyID
 	}
 
-	// Note: DatabaseURL override is handled separately in database initialization
+	// Примечание: переопределение DatabaseURL обрабатывается отдельно при инициализации базы данных
 }
 
-// SetupLogging configures the global logger based on configuration
+// SetupLogging настраивает глобальный логгер на основе конфигурации
 func SetupLogging(cfg config.LoggingConfig) {
 	var level slog.Level
 	switch cfg.Level {
@@ -143,7 +143,7 @@ func SetupLogging(cfg config.LoggingConfig) {
 	slog.SetDefault(slog.New(handler))
 }
 
-// LogConfigInfo logs configuration details for debugging
+// LogConfigInfo выводит детали конфигурации для отладки
 func LogConfigInfo(cfg *config.Config, configFile string) {
 	slog.Debug("Configuration loaded",
 		"config_file", configFile,
@@ -155,7 +155,7 @@ func LogConfigInfo(cfg *config.Config, configFile string) {
 	)
 }
 
-// getEnvOrDefault returns environment variable value or default
+// getEnvOrDefault возвращает значение переменной окружения или значение по умолчанию
 func getEnvOrDefault(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
