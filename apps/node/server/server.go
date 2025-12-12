@@ -107,7 +107,6 @@ func (s *MPCNodeServer) GetNodeInfo(ctx context.Context, req *pb.GetNodeInfoRequ
 	if s.identity != nil {
 		signingPublicKey = s.identity.PublicKeyBase64()
 	}
-
 	return &pb.GetNodeInfoResponse{
 		NodeId:           s.nodeID,
 		PartyId:          s.partyID,

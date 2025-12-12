@@ -21,12 +21,12 @@ type Mutation struct {
 }
 
 type Node struct {
-	ID        string     `json:"id"`
-	PartyID   string     `json:"partyId"`
-	Address   string     `json:"address"`
-	PublicKey string     `json:"publicKey"`
-	Status    NodeStatus `json:"status"`
-	LastSeen  string     `json:"lastSeen"`
+	ID               string     `json:"id"`
+	PartyID          string     `json:"partyId"`
+	Address          string     `json:"address"`
+	Status           NodeStatus `json:"status"`
+	LastSeen         string     `json:"lastSeen"`
+	SigningPublicKey string     `json:"signingPublicKey"`
 }
 
 type Query struct {
@@ -37,8 +37,6 @@ type RegisterNodeInput struct {
 	Address string `json:"address"`
 	// Party ID ноды (опционально - получается от ноды автоматически)
 	PartyID *string `json:"partyId,omitempty"`
-	// Публичный ключ ноды (опционально - получается от ноды автоматически)
-	PublicKey *string `json:"publicKey,omitempty"`
 }
 
 type SigningResult struct {

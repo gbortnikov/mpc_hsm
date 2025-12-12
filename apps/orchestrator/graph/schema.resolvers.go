@@ -46,23 +46,16 @@ func (r *mutationResolver) RegisterNode(ctx context.Context, input model.Registe
 		partyID = info.PartyId
 	}
 
-	var publicKey string
-	if input.PublicKey != nil && *input.PublicKey != "" {
-		publicKey = *input.PublicKey
-	} else {
-		publicKey = info.PublicKey
-	}
-
 	// Получаем signing public key для отображения
 	signingPubKey := client.GetSigningPublicKeyBase64()
 
 	node := &model.Node{
-		ID:        id,
-		PartyID:   partyID,
-		Address:   input.Address,
-		PublicKey: publicKey,
-		Status:    model.NodeStatusOnline,
-		LastSeen:  time.Now().UTC().Format(time.RFC3339),
+		ID:               id,
+		PartyID:          partyID,
+		Address:          input.Address,
+		Status:           model.NodeStatusOnline,
+		LastSeen:         time.Now().UTC().Format(time.RFC3339),
+		SigningPublicKey: signingPubKey,
 	}
 
 	r.nodes[id] = node
@@ -207,7 +200,6 @@ func (r *mutationResolver) StartKeygen(ctx context.Context, input model.StartKey
 	for iteration := 0; iteration < maxIterations; iteration++ {
 		allCompleted := true
 		totalMessages := 0
-
 		// Сначала собираем все сообщения со всех нод через GetKeygenResult
 		for _, client := range clients {
 			result, err := client.GetKeygenResult(ctx, sessionID)

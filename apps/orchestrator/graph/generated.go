@@ -63,12 +63,12 @@ type ComplexityRoot struct {
 	}
 
 	Node struct {
-		Address   func(childComplexity int) int
-		ID        func(childComplexity int) int
-		LastSeen  func(childComplexity int) int
-		PartyID   func(childComplexity int) int
-		PublicKey func(childComplexity int) int
-		Status    func(childComplexity int) int
+		Address          func(childComplexity int) int
+		ID               func(childComplexity int) int
+		LastSeen         func(childComplexity int) int
+		PartyID          func(childComplexity int) int
+		SigningPublicKey func(childComplexity int) int
+		Status           func(childComplexity int) int
 	}
 
 	Query struct {
@@ -215,12 +215,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Node.PartyID(childComplexity), true
-	case "Node.publicKey":
-		if e.complexity.Node.PublicKey == nil {
+	case "Node.signingPublicKey":
+		if e.complexity.Node.SigningPublicKey == nil {
 			break
 		}
 
-		return e.complexity.Node.PublicKey(childComplexity), true
+		return e.complexity.Node.SigningPublicKey(childComplexity), true
 	case "Node.status":
 		if e.complexity.Node.Status == nil {
 			break
@@ -698,12 +698,12 @@ func (ec *executionContext) fieldContext_Mutation_registerNode(ctx context.Conte
 				return ec.fieldContext_Node_partyId(ctx, field)
 			case "address":
 				return ec.fieldContext_Node_address(ctx, field)
-			case "publicKey":
-				return ec.fieldContext_Node_publicKey(ctx, field)
 			case "status":
 				return ec.fieldContext_Node_status(ctx, field)
 			case "lastSeen":
 				return ec.fieldContext_Node_lastSeen(ctx, field)
+			case "signingPublicKey":
+				return ec.fieldContext_Node_signingPublicKey(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Node", field.Name)
 		},
@@ -753,12 +753,12 @@ func (ec *executionContext) fieldContext_Mutation_deleteNode(ctx context.Context
 				return ec.fieldContext_Node_partyId(ctx, field)
 			case "address":
 				return ec.fieldContext_Node_address(ctx, field)
-			case "publicKey":
-				return ec.fieldContext_Node_publicKey(ctx, field)
 			case "status":
 				return ec.fieldContext_Node_status(ctx, field)
 			case "lastSeen":
 				return ec.fieldContext_Node_lastSeen(ctx, field)
+			case "signingPublicKey":
+				return ec.fieldContext_Node_signingPublicKey(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Node", field.Name)
 		},
@@ -970,35 +970,6 @@ func (ec *executionContext) fieldContext_Node_address(_ context.Context, field g
 	return fc, nil
 }
 
-func (ec *executionContext) _Node_publicKey(ctx context.Context, field graphql.CollectedField, obj *model.Node) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		ec.fieldContext_Node_publicKey,
-		func(ctx context.Context) (any, error) {
-			return obj.PublicKey, nil
-		},
-		nil,
-		ec.marshalNString2string,
-		true,
-		true,
-	)
-}
-
-func (ec *executionContext) fieldContext_Node_publicKey(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Node",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Node_status(ctx context.Context, field graphql.CollectedField, obj *model.Node) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -1057,6 +1028,35 @@ func (ec *executionContext) fieldContext_Node_lastSeen(_ context.Context, field 
 	return fc, nil
 }
 
+func (ec *executionContext) _Node_signingPublicKey(ctx context.Context, field graphql.CollectedField, obj *model.Node) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Node_signingPublicKey,
+		func(ctx context.Context) (any, error) {
+			return obj.SigningPublicKey, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Node_signingPublicKey(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Node",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_nodes(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -1087,12 +1087,12 @@ func (ec *executionContext) fieldContext_Query_nodes(_ context.Context, field gr
 				return ec.fieldContext_Node_partyId(ctx, field)
 			case "address":
 				return ec.fieldContext_Node_address(ctx, field)
-			case "publicKey":
-				return ec.fieldContext_Node_publicKey(ctx, field)
 			case "status":
 				return ec.fieldContext_Node_status(ctx, field)
 			case "lastSeen":
 				return ec.fieldContext_Node_lastSeen(ctx, field)
+			case "signingPublicKey":
+				return ec.fieldContext_Node_signingPublicKey(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Node", field.Name)
 		},
@@ -1131,12 +1131,12 @@ func (ec *executionContext) fieldContext_Query_node(ctx context.Context, field g
 				return ec.fieldContext_Node_partyId(ctx, field)
 			case "address":
 				return ec.fieldContext_Node_address(ctx, field)
-			case "publicKey":
-				return ec.fieldContext_Node_publicKey(ctx, field)
 			case "status":
 				return ec.fieldContext_Node_status(ctx, field)
 			case "lastSeen":
 				return ec.fieldContext_Node_lastSeen(ctx, field)
+			case "signingPublicKey":
+				return ec.fieldContext_Node_signingPublicKey(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Node", field.Name)
 		},
@@ -2861,7 +2861,7 @@ func (ec *executionContext) unmarshalInputRegisterNodeInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"address", "partyId", "publicKey"}
+	fieldsInOrder := [...]string{"address", "partyId"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -2882,13 +2882,6 @@ func (ec *executionContext) unmarshalInputRegisterNodeInput(ctx context.Context,
 				return it, err
 			}
 			it.PartyID = data
-		case "publicKey":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("publicKey"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.PublicKey = data
 		}
 	}
 
@@ -3137,11 +3130,6 @@ func (ec *executionContext) _Node(ctx context.Context, sel ast.SelectionSet, obj
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "publicKey":
-			out.Values[i] = ec._Node_publicKey(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		case "status":
 			out.Values[i] = ec._Node_status(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -3149,6 +3137,11 @@ func (ec *executionContext) _Node(ctx context.Context, sel ast.SelectionSet, obj
 			}
 		case "lastSeen":
 			out.Values[i] = ec._Node_lastSeen(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "signingPublicKey":
+			out.Values[i] = ec._Node_signingPublicKey(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

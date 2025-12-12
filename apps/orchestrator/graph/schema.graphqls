@@ -16,9 +16,9 @@ type Node {
   id: ID!
   partyId: String!
   address: String!
-  publicKey: String!
   status: NodeStatus!
   lastSeen: String!
+  signingPublicKey: String!
 }
 
 input RegisterNodeInput {
@@ -30,10 +30,6 @@ input RegisterNodeInput {
   Party ID ноды (опционально - получается от ноды автоматически)
   """
   partyId: String
-  """
-  Публичный ключ ноды (опционально - получается от ноды автоматически)
-  """
-  publicKey: String
 }
 
 # ============================================
