@@ -27,7 +27,6 @@ const (
 	MPCNodeService_InitSigning_FullMethodName                 = "/mpcnode.MPCNodeService/InitSigning"
 	MPCNodeService_ProcessSigningMessage_FullMethodName       = "/mpcnode.MPCNodeService/ProcessSigningMessage"
 	MPCNodeService_GetSigningResult_FullMethodName            = "/mpcnode.MPCNodeService/GetSigningResult"
-	MPCNodeService_MPCMessageStream_FullMethodName            = "/mpcnode.MPCNodeService/MPCMessageStream"
 	MPCNodeService_ProcessSignedKeygenMessage_FullMethodName  = "/mpcnode.MPCNodeService/ProcessSignedKeygenMessage"
 	MPCNodeService_ProcessSignedSigningMessage_FullMethodName = "/mpcnode.MPCNodeService/ProcessSignedSigningMessage"
 	MPCNodeService_ExchangePeerInfo_FullMethodName            = "/mpcnode.MPCNodeService/ExchangePeerInfo"
@@ -56,8 +55,6 @@ type MPCNodeServiceClient interface {
 	ProcessSigningMessage(ctx context.Context, in *SigningMessage, opts ...grpc.CallOption) (*SigningMessageResponse, error)
 	// Получение результата подписания
 	GetSigningResult(ctx context.Context, in *GetSigningResultRequest, opts ...grpc.CallOption) (*GetSigningResultResponse, error)
-	// Двунаправленный поток для обмена MPC сообщениями
-	MPCMessageStream(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[MPCStreamMessage, MPCStreamMessage], error)
 	// Обработка подписанного keygen сообщения
 	ProcessSignedKeygenMessage(ctx context.Context, in *SignedEnvelope, opts ...grpc.CallOption) (*SignedKeygenResponse, error)
 	// Обработка подписанного signing сообщения
@@ -156,19 +153,6 @@ func (c *mPCNodeServiceClient) GetSigningResult(ctx context.Context, in *GetSign
 	return out, nil
 }
 
-func (c *mPCNodeServiceClient) MPCMessageStream(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[MPCStreamMessage, MPCStreamMessage], error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &MPCNodeService_ServiceDesc.Streams[0], MPCNodeService_MPCMessageStream_FullMethodName, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &grpc.GenericClientStream[MPCStreamMessage, MPCStreamMessage]{ClientStream: stream}
-	return x, nil
-}
-
-// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type MPCNodeService_MPCMessageStreamClient = grpc.BidiStreamingClient[MPCStreamMessage, MPCStreamMessage]
-
 func (c *mPCNodeServiceClient) ProcessSignedKeygenMessage(ctx context.Context, in *SignedEnvelope, opts ...grpc.CallOption) (*SignedKeygenResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SignedKeygenResponse)
@@ -231,8 +215,6 @@ type MPCNodeServiceServer interface {
 	ProcessSigningMessage(context.Context, *SigningMessage) (*SigningMessageResponse, error)
 	// Получение результата подписания
 	GetSigningResult(context.Context, *GetSigningResultRequest) (*GetSigningResultResponse, error)
-	// Двунаправленный поток для обмена MPC сообщениями
-	MPCMessageStream(grpc.BidiStreamingServer[MPCStreamMessage, MPCStreamMessage]) error
 	// Обработка подписанного keygen сообщения
 	ProcessSignedKeygenMessage(context.Context, *SignedEnvelope) (*SignedKeygenResponse, error)
 	// Обработка подписанного signing сообщения
@@ -274,9 +256,6 @@ func (UnimplementedMPCNodeServiceServer) ProcessSigningMessage(context.Context, 
 }
 func (UnimplementedMPCNodeServiceServer) GetSigningResult(context.Context, *GetSigningResultRequest) (*GetSigningResultResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetSigningResult not implemented")
-}
-func (UnimplementedMPCNodeServiceServer) MPCMessageStream(grpc.BidiStreamingServer[MPCStreamMessage, MPCStreamMessage]) error {
-	return status.Error(codes.Unimplemented, "method MPCMessageStream not implemented")
 }
 func (UnimplementedMPCNodeServiceServer) ProcessSignedKeygenMessage(context.Context, *SignedEnvelope) (*SignedKeygenResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ProcessSignedKeygenMessage not implemented")
@@ -455,13 +434,6 @@ func _MPCNodeService_GetSigningResult_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
-func _MPCNodeService_MPCMessageStream_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(MPCNodeServiceServer).MPCMessageStream(&grpc.GenericServerStream[MPCStreamMessage, MPCStreamMessage]{ServerStream: stream})
-}
-
-// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type MPCNodeService_MPCMessageStreamServer = grpc.BidiStreamingServer[MPCStreamMessage, MPCStreamMessage]
-
 func _MPCNodeService_ProcessSignedKeygenMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SignedEnvelope)
 	if err := dec(in); err != nil {
@@ -590,13 +562,6 @@ var MPCNodeService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _MPCNodeService_Ping_Handler,
 		},
 	},
-	Streams: []grpc.StreamDesc{
-		{
-			StreamName:    "MPCMessageStream",
-			Handler:       _MPCNodeService_MPCMessageStream_Handler,
-			ServerStreams: true,
-			ClientStreams: true,
-		},
-	},
+	Streams:  []grpc.StreamDesc{},
 	Metadata: "proto/node.proto",
 }

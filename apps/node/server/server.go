@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"io"
 	"log/slog"
 	"sync"
 
@@ -116,93 +115,3 @@ func (s *MPCNodeServer) GetNodeInfo(ctx context.Context, req *pb.GetNodeInfoRequ
 	}, nil
 }
 
-// MPCMessageStream реализует двунаправленный поток для обмена MPC сообщениями
-func (s *MPCNodeServer) MPCMessageStream(stream pb.MPCNodeService_MPCMessageStreamServer) error {
-	for {
-		msg, err := stream.Recv()
-		if err == io.EOF {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-
-		// Обработка входящего сообщения
-		var responses []*pb.MPCStreamMessage
-
-		switch payload := msg.MessageType.(type) {
-		case *pb.MPCStreamMessage_Keygen:
-			s.keygenMu.RLock()
-			session, exists := s.keygenSessions[msg.SessionId]
-			s.keygenMu.RUnlock()
-
-			if exists {
-				outgoing, err := session.ProcessMessage(msg.FromParty, int(payload.Keygen.Round), payload.Keygen.Data, payload.Keygen.IsBroadcast)
-				if err == nil {
-					for _, out := range outgoing {
-						responses = append(responses, &pb.MPCStreamMessage{
-							SessionId: msg.SessionId,
-							FromParty: out.FromParty,
-							ToParties: out.ToParties,
-							MessageType: &pb.MPCStreamMessage_Keygen{
-								Keygen: &pb.KeygenStreamPayload{
-									Round:       payload.Keygen.Round,
-									Data:        out.Payload,
-									IsBroadcast: out.IsBroadcast,
-								},
-							},
-						})
-					}
-				}
-			}
-
-		case *pb.MPCStreamMessage_Signing:
-			s.signingMu.RLock()
-			session, exists := s.signingSessions[msg.SessionId]
-			s.signingMu.RUnlock()
-
-			if exists {
-				outgoing, err := session.ProcessMessage(msg.FromParty, int(payload.Signing.Round), payload.Signing.Data, payload.Signing.IsBroadcast)
-				if err == nil {
-					for _, out := range outgoing {
-						responses = append(responses, &pb.MPCStreamMessage{
-							SessionId: msg.SessionId,
-							FromParty: out.FromParty,
-							ToParties: out.ToParties,
-							MessageType: &pb.MPCStreamMessage_Signing{
-								Signing: &pb.SigningStreamPayload{
-									Round:       payload.Signing.Round,
-									Data:        out.Payload,
-									IsBroadcast: out.IsBroadcast,
-								},
-							},
-						})
-					}
-				}
-			}
-
-		case *pb.MPCStreamMessage_Control:
-			// Обработка управляющих сообщений
-			switch payload.Control.Type {
-			case pb.ControlType_CONTROL_TYPE_HEARTBEAT:
-				responses = append(responses, &pb.MPCStreamMessage{
-					SessionId: msg.SessionId,
-					FromParty: s.partyID,
-					MessageType: &pb.MPCStreamMessage_Control{
-						Control: &pb.ControlMessage{
-							Type:    pb.ControlType_CONTROL_TYPE_HEARTBEAT,
-							Payload: "pong",
-						},
-					},
-				})
-			}
-		}
-
-		// Отправка ответов
-		for _, resp := range responses {
-			if err := stream.Send(resp); err != nil {
-				return err
-			}
-		}
-	}
-}

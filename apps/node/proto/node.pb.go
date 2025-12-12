@@ -76,61 +76,6 @@ func (NodeStatus) EnumDescriptor() ([]byte, []int) {
 	return file_proto_node_proto_rawDescGZIP(), []int{0}
 }
 
-type ControlType int32
-
-const (
-	ControlType_CONTROL_TYPE_UNSPECIFIED   ControlType = 0
-	ControlType_CONTROL_TYPE_SESSION_START ControlType = 1
-	ControlType_CONTROL_TYPE_SESSION_END   ControlType = 2
-	ControlType_CONTROL_TYPE_ERROR         ControlType = 3
-	ControlType_CONTROL_TYPE_HEARTBEAT     ControlType = 4
-)
-
-// Enum value maps for ControlType.
-var (
-	ControlType_name = map[int32]string{
-		0: "CONTROL_TYPE_UNSPECIFIED",
-		1: "CONTROL_TYPE_SESSION_START",
-		2: "CONTROL_TYPE_SESSION_END",
-		3: "CONTROL_TYPE_ERROR",
-		4: "CONTROL_TYPE_HEARTBEAT",
-	}
-	ControlType_value = map[string]int32{
-		"CONTROL_TYPE_UNSPECIFIED":   0,
-		"CONTROL_TYPE_SESSION_START": 1,
-		"CONTROL_TYPE_SESSION_END":   2,
-		"CONTROL_TYPE_ERROR":         3,
-		"CONTROL_TYPE_HEARTBEAT":     4,
-	}
-)
-
-func (x ControlType) Enum() *ControlType {
-	p := new(ControlType)
-	*p = x
-	return p
-}
-
-func (x ControlType) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (ControlType) Descriptor() protoreflect.EnumDescriptor {
-	return file_proto_node_proto_enumTypes[1].Descriptor()
-}
-
-func (ControlType) Type() protoreflect.EnumType {
-	return &file_proto_node_proto_enumTypes[1]
-}
-
-func (x ControlType) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use ControlType.Descriptor instead.
-func (ControlType) EnumDescriptor() ([]byte, []int) {
-	return file_proto_node_proto_rawDescGZIP(), []int{1}
-}
-
 type SessionType int32
 
 const (
@@ -167,11 +112,11 @@ func (x SessionType) String() string {
 }
 
 func (SessionType) Descriptor() protoreflect.EnumDescriptor {
-	return file_proto_node_proto_enumTypes[2].Descriptor()
+	return file_proto_node_proto_enumTypes[1].Descriptor()
 }
 
 func (SessionType) Type() protoreflect.EnumType {
-	return &file_proto_node_proto_enumTypes[2]
+	return &file_proto_node_proto_enumTypes[1]
 }
 
 func (x SessionType) Number() protoreflect.EnumNumber {
@@ -180,7 +125,7 @@ func (x SessionType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use SessionType.Descriptor instead.
 func (SessionType) EnumDescriptor() ([]byte, []int) {
-	return file_proto_node_proto_rawDescGZIP(), []int{2}
+	return file_proto_node_proto_rawDescGZIP(), []int{1}
 }
 
 // SignedEnvelope оборачивает любое сообщение с криптографической подписью
@@ -1538,300 +1483,6 @@ func (x *SigningResult) GetV() int32 {
 	return 0
 }
 
-type MPCStreamMessage struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	SessionId string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
-	FromParty string                 `protobuf:"bytes,2,opt,name=from_party,json=fromParty,proto3" json:"from_party,omitempty"`
-	ToParties []string               `protobuf:"bytes,3,rep,name=to_parties,json=toParties,proto3" json:"to_parties,omitempty"`
-	// Types that are valid to be assigned to MessageType:
-	//
-	//	*MPCStreamMessage_Keygen
-	//	*MPCStreamMessage_Signing
-	//	*MPCStreamMessage_Control
-	MessageType   isMPCStreamMessage_MessageType `protobuf_oneof:"message_type"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *MPCStreamMessage) Reset() {
-	*x = MPCStreamMessage{}
-	mi := &file_proto_node_proto_msgTypes[20]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *MPCStreamMessage) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*MPCStreamMessage) ProtoMessage() {}
-
-func (x *MPCStreamMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_node_proto_msgTypes[20]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use MPCStreamMessage.ProtoReflect.Descriptor instead.
-func (*MPCStreamMessage) Descriptor() ([]byte, []int) {
-	return file_proto_node_proto_rawDescGZIP(), []int{20}
-}
-
-func (x *MPCStreamMessage) GetSessionId() string {
-	if x != nil {
-		return x.SessionId
-	}
-	return ""
-}
-
-func (x *MPCStreamMessage) GetFromParty() string {
-	if x != nil {
-		return x.FromParty
-	}
-	return ""
-}
-
-func (x *MPCStreamMessage) GetToParties() []string {
-	if x != nil {
-		return x.ToParties
-	}
-	return nil
-}
-
-func (x *MPCStreamMessage) GetMessageType() isMPCStreamMessage_MessageType {
-	if x != nil {
-		return x.MessageType
-	}
-	return nil
-}
-
-func (x *MPCStreamMessage) GetKeygen() *KeygenStreamPayload {
-	if x != nil {
-		if x, ok := x.MessageType.(*MPCStreamMessage_Keygen); ok {
-			return x.Keygen
-		}
-	}
-	return nil
-}
-
-func (x *MPCStreamMessage) GetSigning() *SigningStreamPayload {
-	if x != nil {
-		if x, ok := x.MessageType.(*MPCStreamMessage_Signing); ok {
-			return x.Signing
-		}
-	}
-	return nil
-}
-
-func (x *MPCStreamMessage) GetControl() *ControlMessage {
-	if x != nil {
-		if x, ok := x.MessageType.(*MPCStreamMessage_Control); ok {
-			return x.Control
-		}
-	}
-	return nil
-}
-
-type isMPCStreamMessage_MessageType interface {
-	isMPCStreamMessage_MessageType()
-}
-
-type MPCStreamMessage_Keygen struct {
-	Keygen *KeygenStreamPayload `protobuf:"bytes,4,opt,name=keygen,proto3,oneof"`
-}
-
-type MPCStreamMessage_Signing struct {
-	Signing *SigningStreamPayload `protobuf:"bytes,5,opt,name=signing,proto3,oneof"`
-}
-
-type MPCStreamMessage_Control struct {
-	Control *ControlMessage `protobuf:"bytes,6,opt,name=control,proto3,oneof"`
-}
-
-func (*MPCStreamMessage_Keygen) isMPCStreamMessage_MessageType() {}
-
-func (*MPCStreamMessage_Signing) isMPCStreamMessage_MessageType() {}
-
-func (*MPCStreamMessage_Control) isMPCStreamMessage_MessageType() {}
-
-type KeygenStreamPayload struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Round         int32                  `protobuf:"varint,1,opt,name=round,proto3" json:"round,omitempty"`
-	Data          []byte                 `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
-	IsBroadcast   bool                   `protobuf:"varint,3,opt,name=is_broadcast,json=isBroadcast,proto3" json:"is_broadcast,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *KeygenStreamPayload) Reset() {
-	*x = KeygenStreamPayload{}
-	mi := &file_proto_node_proto_msgTypes[21]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *KeygenStreamPayload) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*KeygenStreamPayload) ProtoMessage() {}
-
-func (x *KeygenStreamPayload) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_node_proto_msgTypes[21]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use KeygenStreamPayload.ProtoReflect.Descriptor instead.
-func (*KeygenStreamPayload) Descriptor() ([]byte, []int) {
-	return file_proto_node_proto_rawDescGZIP(), []int{21}
-}
-
-func (x *KeygenStreamPayload) GetRound() int32 {
-	if x != nil {
-		return x.Round
-	}
-	return 0
-}
-
-func (x *KeygenStreamPayload) GetData() []byte {
-	if x != nil {
-		return x.Data
-	}
-	return nil
-}
-
-func (x *KeygenStreamPayload) GetIsBroadcast() bool {
-	if x != nil {
-		return x.IsBroadcast
-	}
-	return false
-}
-
-type SigningStreamPayload struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Round         int32                  `protobuf:"varint,1,opt,name=round,proto3" json:"round,omitempty"`
-	Data          []byte                 `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
-	IsBroadcast   bool                   `protobuf:"varint,3,opt,name=is_broadcast,json=isBroadcast,proto3" json:"is_broadcast,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SigningStreamPayload) Reset() {
-	*x = SigningStreamPayload{}
-	mi := &file_proto_node_proto_msgTypes[22]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SigningStreamPayload) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SigningStreamPayload) ProtoMessage() {}
-
-func (x *SigningStreamPayload) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_node_proto_msgTypes[22]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SigningStreamPayload.ProtoReflect.Descriptor instead.
-func (*SigningStreamPayload) Descriptor() ([]byte, []int) {
-	return file_proto_node_proto_rawDescGZIP(), []int{22}
-}
-
-func (x *SigningStreamPayload) GetRound() int32 {
-	if x != nil {
-		return x.Round
-	}
-	return 0
-}
-
-func (x *SigningStreamPayload) GetData() []byte {
-	if x != nil {
-		return x.Data
-	}
-	return nil
-}
-
-func (x *SigningStreamPayload) GetIsBroadcast() bool {
-	if x != nil {
-		return x.IsBroadcast
-	}
-	return false
-}
-
-type ControlMessage struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Type          ControlType            `protobuf:"varint,1,opt,name=type,proto3,enum=mpcnode.ControlType" json:"type,omitempty"`
-	Payload       string                 `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ControlMessage) Reset() {
-	*x = ControlMessage{}
-	mi := &file_proto_node_proto_msgTypes[23]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ControlMessage) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ControlMessage) ProtoMessage() {}
-
-func (x *ControlMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_node_proto_msgTypes[23]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ControlMessage.ProtoReflect.Descriptor instead.
-func (*ControlMessage) Descriptor() ([]byte, []int) {
-	return file_proto_node_proto_rawDescGZIP(), []int{23}
-}
-
-func (x *ControlMessage) GetType() ControlType {
-	if x != nil {
-		return x.Type
-	}
-	return ControlType_CONTROL_TYPE_UNSPECIFIED
-}
-
-func (x *ControlMessage) GetPayload() string {
-	if x != nil {
-		return x.Payload
-	}
-	return ""
-}
-
 // Ответ на подписанное keygen сообщение
 type SignedKeygenResponse struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
@@ -1844,7 +1495,7 @@ type SignedKeygenResponse struct {
 
 func (x *SignedKeygenResponse) Reset() {
 	*x = SignedKeygenResponse{}
-	mi := &file_proto_node_proto_msgTypes[24]
+	mi := &file_proto_node_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1856,7 +1507,7 @@ func (x *SignedKeygenResponse) String() string {
 func (*SignedKeygenResponse) ProtoMessage() {}
 
 func (x *SignedKeygenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_node_proto_msgTypes[24]
+	mi := &file_proto_node_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1869,7 +1520,7 @@ func (x *SignedKeygenResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignedKeygenResponse.ProtoReflect.Descriptor instead.
 func (*SignedKeygenResponse) Descriptor() ([]byte, []int) {
-	return file_proto_node_proto_rawDescGZIP(), []int{24}
+	return file_proto_node_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *SignedKeygenResponse) GetSuccess() bool {
@@ -1905,7 +1556,7 @@ type SignedSigningResponse struct {
 
 func (x *SignedSigningResponse) Reset() {
 	*x = SignedSigningResponse{}
-	mi := &file_proto_node_proto_msgTypes[25]
+	mi := &file_proto_node_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1917,7 +1568,7 @@ func (x *SignedSigningResponse) String() string {
 func (*SignedSigningResponse) ProtoMessage() {}
 
 func (x *SignedSigningResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_node_proto_msgTypes[25]
+	mi := &file_proto_node_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1930,7 +1581,7 @@ func (x *SignedSigningResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignedSigningResponse.ProtoReflect.Descriptor instead.
 func (*SignedSigningResponse) Descriptor() ([]byte, []int) {
-	return file_proto_node_proto_rawDescGZIP(), []int{25}
+	return file_proto_node_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *SignedSigningResponse) GetSuccess() bool {
@@ -1965,7 +1616,7 @@ type PeerInfoRequest struct {
 
 func (x *PeerInfoRequest) Reset() {
 	*x = PeerInfoRequest{}
-	mi := &file_proto_node_proto_msgTypes[26]
+	mi := &file_proto_node_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1977,7 +1628,7 @@ func (x *PeerInfoRequest) String() string {
 func (*PeerInfoRequest) ProtoMessage() {}
 
 func (x *PeerInfoRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_node_proto_msgTypes[26]
+	mi := &file_proto_node_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1990,7 +1641,7 @@ func (x *PeerInfoRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PeerInfoRequest.ProtoReflect.Descriptor instead.
 func (*PeerInfoRequest) Descriptor() ([]byte, []int) {
-	return file_proto_node_proto_rawDescGZIP(), []int{26}
+	return file_proto_node_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *PeerInfoRequest) GetRequesterPartyId() string {
@@ -2020,7 +1671,7 @@ type PeerInfoResponse struct {
 
 func (x *PeerInfoResponse) Reset() {
 	*x = PeerInfoResponse{}
-	mi := &file_proto_node_proto_msgTypes[27]
+	mi := &file_proto_node_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2032,7 +1683,7 @@ func (x *PeerInfoResponse) String() string {
 func (*PeerInfoResponse) ProtoMessage() {}
 
 func (x *PeerInfoResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_node_proto_msgTypes[27]
+	mi := &file_proto_node_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2045,7 +1696,7 @@ func (x *PeerInfoResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PeerInfoResponse.ProtoReflect.Descriptor instead.
 func (*PeerInfoResponse) Descriptor() ([]byte, []int) {
-	return file_proto_node_proto_rawDescGZIP(), []int{27}
+	return file_proto_node_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *PeerInfoResponse) GetPartyId() string {
@@ -2089,7 +1740,7 @@ type PeerRecord struct {
 
 func (x *PeerRecord) Reset() {
 	*x = PeerRecord{}
-	mi := &file_proto_node_proto_msgTypes[28]
+	mi := &file_proto_node_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2101,7 +1752,7 @@ func (x *PeerRecord) String() string {
 func (*PeerRecord) ProtoMessage() {}
 
 func (x *PeerRecord) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_node_proto_msgTypes[28]
+	mi := &file_proto_node_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2114,7 +1765,7 @@ func (x *PeerRecord) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PeerRecord.ProtoReflect.Descriptor instead.
 func (*PeerRecord) Descriptor() ([]byte, []int) {
-	return file_proto_node_proto_rawDescGZIP(), []int{28}
+	return file_proto_node_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *PeerRecord) GetPartyId() string {
@@ -2156,7 +1807,7 @@ type PingRequest struct {
 
 func (x *PingRequest) Reset() {
 	*x = PingRequest{}
-	mi := &file_proto_node_proto_msgTypes[29]
+	mi := &file_proto_node_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2168,7 +1819,7 @@ func (x *PingRequest) String() string {
 func (*PingRequest) ProtoMessage() {}
 
 func (x *PingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_node_proto_msgTypes[29]
+	mi := &file_proto_node_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2181,7 +1832,7 @@ func (x *PingRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PingRequest.ProtoReflect.Descriptor instead.
 func (*PingRequest) Descriptor() ([]byte, []int) {
-	return file_proto_node_proto_rawDescGZIP(), []int{29}
+	return file_proto_node_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *PingRequest) GetFromPartyId() string {
@@ -2210,7 +1861,7 @@ type PingResponse struct {
 
 func (x *PingResponse) Reset() {
 	*x = PingResponse{}
-	mi := &file_proto_node_proto_msgTypes[30]
+	mi := &file_proto_node_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2222,7 +1873,7 @@ func (x *PingResponse) String() string {
 func (*PingResponse) ProtoMessage() {}
 
 func (x *PingResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_node_proto_msgTypes[30]
+	mi := &file_proto_node_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2235,7 +1886,7 @@ func (x *PingResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PingResponse.ProtoReflect.Descriptor instead.
 func (*PingResponse) Descriptor() ([]byte, []int) {
-	return file_proto_node_proto_rawDescGZIP(), []int{30}
+	return file_proto_node_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *PingResponse) GetPartyId() string {
@@ -2278,7 +1929,7 @@ type SessionInitRequest struct {
 
 func (x *SessionInitRequest) Reset() {
 	*x = SessionInitRequest{}
-	mi := &file_proto_node_proto_msgTypes[31]
+	mi := &file_proto_node_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2290,7 +1941,7 @@ func (x *SessionInitRequest) String() string {
 func (*SessionInitRequest) ProtoMessage() {}
 
 func (x *SessionInitRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_node_proto_msgTypes[31]
+	mi := &file_proto_node_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2303,7 +1954,7 @@ func (x *SessionInitRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SessionInitRequest.ProtoReflect.Descriptor instead.
 func (*SessionInitRequest) Descriptor() ([]byte, []int) {
-	return file_proto_node_proto_rawDescGZIP(), []int{31}
+	return file_proto_node_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *SessionInitRequest) GetSessionId() string {
@@ -2389,7 +2040,7 @@ type SessionInitResponse struct {
 
 func (x *SessionInitResponse) Reset() {
 	*x = SessionInitResponse{}
-	mi := &file_proto_node_proto_msgTypes[32]
+	mi := &file_proto_node_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2401,7 +2052,7 @@ func (x *SessionInitResponse) String() string {
 func (*SessionInitResponse) ProtoMessage() {}
 
 func (x *SessionInitResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_node_proto_msgTypes[32]
+	mi := &file_proto_node_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2414,7 +2065,7 @@ func (x *SessionInitResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SessionInitResponse.ProtoReflect.Descriptor instead.
 func (*SessionInitResponse) Descriptor() ([]byte, []int) {
-	return file_proto_node_proto_rawDescGZIP(), []int{32}
+	return file_proto_node_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *SessionInitResponse) GetAccepted() bool {
@@ -2458,7 +2109,7 @@ type SessionStartCommand struct {
 
 func (x *SessionStartCommand) Reset() {
 	*x = SessionStartCommand{}
-	mi := &file_proto_node_proto_msgTypes[33]
+	mi := &file_proto_node_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2470,7 +2121,7 @@ func (x *SessionStartCommand) String() string {
 func (*SessionStartCommand) ProtoMessage() {}
 
 func (x *SessionStartCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_node_proto_msgTypes[33]
+	mi := &file_proto_node_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2483,7 +2134,7 @@ func (x *SessionStartCommand) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SessionStartCommand.ProtoReflect.Descriptor instead.
 func (*SessionStartCommand) Descriptor() ([]byte, []int) {
-	return file_proto_node_proto_rawDescGZIP(), []int{33}
+	return file_proto_node_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *SessionStartCommand) GetSessionId() string {
@@ -2527,7 +2178,7 @@ type SessionParticipant struct {
 
 func (x *SessionParticipant) Reset() {
 	*x = SessionParticipant{}
-	mi := &file_proto_node_proto_msgTypes[34]
+	mi := &file_proto_node_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2539,7 +2190,7 @@ func (x *SessionParticipant) String() string {
 func (*SessionParticipant) ProtoMessage() {}
 
 func (x *SessionParticipant) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_node_proto_msgTypes[34]
+	mi := &file_proto_node_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2552,7 +2203,7 @@ func (x *SessionParticipant) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SessionParticipant.ProtoReflect.Descriptor instead.
 func (*SessionParticipant) Descriptor() ([]byte, []int) {
-	return file_proto_node_proto_rawDescGZIP(), []int{34}
+	return file_proto_node_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *SessionParticipant) GetPartyId() string {
@@ -2702,29 +2353,7 @@ const file_proto_node_proto_rawDesc = "" +
 	"\tsignature\x18\x01 \x01(\tR\tsignature\x12\f\n" +
 	"\x01r\x18\x02 \x01(\tR\x01r\x12\f\n" +
 	"\x01s\x18\x03 \x01(\tR\x01s\x12\f\n" +
-	"\x01v\x18\x04 \x01(\x05R\x01v\"\xa7\x02\n" +
-	"\x10MPCStreamMessage\x12\x1d\n" +
-	"\n" +
-	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x1d\n" +
-	"\n" +
-	"from_party\x18\x02 \x01(\tR\tfromParty\x12\x1d\n" +
-	"\n" +
-	"to_parties\x18\x03 \x03(\tR\ttoParties\x126\n" +
-	"\x06keygen\x18\x04 \x01(\v2\x1c.mpcnode.KeygenStreamPayloadH\x00R\x06keygen\x129\n" +
-	"\asigning\x18\x05 \x01(\v2\x1d.mpcnode.SigningStreamPayloadH\x00R\asigning\x123\n" +
-	"\acontrol\x18\x06 \x01(\v2\x17.mpcnode.ControlMessageH\x00R\acontrolB\x0e\n" +
-	"\fmessage_type\"b\n" +
-	"\x13KeygenStreamPayload\x12\x14\n" +
-	"\x05round\x18\x01 \x01(\x05R\x05round\x12\x12\n" +
-	"\x04data\x18\x02 \x01(\fR\x04data\x12!\n" +
-	"\fis_broadcast\x18\x03 \x01(\bR\visBroadcast\"c\n" +
-	"\x14SigningStreamPayload\x12\x14\n" +
-	"\x05round\x18\x01 \x01(\x05R\x05round\x12\x12\n" +
-	"\x04data\x18\x02 \x01(\fR\x04data\x12!\n" +
-	"\fis_broadcast\x18\x03 \x01(\bR\visBroadcast\"T\n" +
-	"\x0eControlMessage\x12(\n" +
-	"\x04type\x18\x01 \x01(\x0e2\x14.mpcnode.ControlTypeR\x04type\x12\x18\n" +
-	"\apayload\x18\x02 \x01(\tR\apayload\"\x9b\x01\n" +
+	"\x01v\x18\x04 \x01(\x05R\x01v\"\x9b\x01\n" +
 	"\x14SignedKeygenResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12#\n" +
 	"\rerror_message\x18\x02 \x01(\tR\ferrorMessage\x12D\n" +
@@ -2791,18 +2420,12 @@ const file_proto_node_proto_rawDesc = "" +
 	"\x12NODE_STATUS_ONLINE\x10\x01\x12\x17\n" +
 	"\x13NODE_STATUS_OFFLINE\x10\x02\x12\x14\n" +
 	"\x10NODE_STATUS_BUSY\x10\x03\x12\x15\n" +
-	"\x11NODE_STATUS_ERROR\x10\x04*\x9d\x01\n" +
-	"\vControlType\x12\x1c\n" +
-	"\x18CONTROL_TYPE_UNSPECIFIED\x10\x00\x12\x1e\n" +
-	"\x1aCONTROL_TYPE_SESSION_START\x10\x01\x12\x1c\n" +
-	"\x18CONTROL_TYPE_SESSION_END\x10\x02\x12\x16\n" +
-	"\x12CONTROL_TYPE_ERROR\x10\x03\x12\x1a\n" +
-	"\x16CONTROL_TYPE_HEARTBEAT\x10\x04*z\n" +
+	"\x11NODE_STATUS_ERROR\x10\x04*z\n" +
 	"\vSessionType\x12\x1c\n" +
 	"\x18SESSION_TYPE_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13SESSION_TYPE_KEYGEN\x10\x01\x12\x18\n" +
 	"\x14SESSION_TYPE_SIGNING\x10\x02\x12\x1a\n" +
-	"\x16SESSION_TYPE_RESHARING\x10\x032\x81\b\n" +
+	"\x16SESSION_TYPE_RESHARING\x10\x032\xb3\a\n" +
 	"\x0eMPCNodeService\x12H\n" +
 	"\vHealthCheck\x12\x1b.mpcnode.HealthCheckRequest\x1a\x1c.mpcnode.HealthCheckResponse\x12H\n" +
 	"\vGetNodeInfo\x12\x1b.mpcnode.GetNodeInfoRequest\x1a\x1c.mpcnode.GetNodeInfoResponse\x12E\n" +
@@ -2812,8 +2435,7 @@ const file_proto_node_proto_rawDesc = "" +
 	"\x0fGetKeygenResult\x12\x1f.mpcnode.GetKeygenResultRequest\x1a .mpcnode.GetKeygenResultResponse\x12H\n" +
 	"\vInitSigning\x12\x1b.mpcnode.InitSigningRequest\x1a\x1c.mpcnode.InitSigningResponse\x12Q\n" +
 	"\x15ProcessSigningMessage\x12\x17.mpcnode.SigningMessage\x1a\x1f.mpcnode.SigningMessageResponse\x12W\n" +
-	"\x10GetSigningResult\x12 .mpcnode.GetSigningResultRequest\x1a!.mpcnode.GetSigningResultResponse\x12L\n" +
-	"\x10MPCMessageStream\x12\x19.mpcnode.MPCStreamMessage\x1a\x19.mpcnode.MPCStreamMessage(\x010\x01\x12T\n" +
+	"\x10GetSigningResult\x12 .mpcnode.GetSigningResultRequest\x1a!.mpcnode.GetSigningResultResponse\x12T\n" +
 	"\x1aProcessSignedKeygenMessage\x12\x17.mpcnode.SignedEnvelope\x1a\x1d.mpcnode.SignedKeygenResponse\x12V\n" +
 	"\x1bProcessSignedSigningMessage\x12\x17.mpcnode.SignedEnvelope\x1a\x1e.mpcnode.SignedSigningResponse\x12G\n" +
 	"\x10ExchangePeerInfo\x12\x18.mpcnode.PeerInfoRequest\x1a\x19.mpcnode.PeerInfoResponse\x123\n" +
@@ -2831,98 +2453,87 @@ func file_proto_node_proto_rawDescGZIP() []byte {
 	return file_proto_node_proto_rawDescData
 }
 
-var file_proto_node_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_proto_node_proto_msgTypes = make([]protoimpl.MessageInfo, 35)
+var file_proto_node_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_proto_node_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
 var file_proto_node_proto_goTypes = []any{
 	(NodeStatus)(0),                  // 0: mpcnode.NodeStatus
-	(ControlType)(0),                 // 1: mpcnode.ControlType
-	(SessionType)(0),                 // 2: mpcnode.SessionType
-	(*SignedEnvelope)(nil),           // 3: mpcnode.SignedEnvelope
-	(*HealthCheckRequest)(nil),       // 4: mpcnode.HealthCheckRequest
-	(*HealthCheckResponse)(nil),      // 5: mpcnode.HealthCheckResponse
-	(*GetNodeInfoRequest)(nil),       // 6: mpcnode.GetNodeInfoRequest
-	(*GetNodeInfoResponse)(nil),      // 7: mpcnode.GetNodeInfoResponse
-	(*InitKeygenRequest)(nil),        // 8: mpcnode.InitKeygenRequest
-	(*PartyInfo)(nil),                // 9: mpcnode.PartyInfo
-	(*InitKeygenResponse)(nil),       // 10: mpcnode.InitKeygenResponse
-	(*KeygenMessage)(nil),            // 11: mpcnode.KeygenMessage
-	(*KeygenMessageResponse)(nil),    // 12: mpcnode.KeygenMessageResponse
-	(*GetKeygenResultRequest)(nil),   // 13: mpcnode.GetKeygenResultRequest
-	(*GetKeygenResultResponse)(nil),  // 14: mpcnode.GetKeygenResultResponse
-	(*KeygenResult)(nil),             // 15: mpcnode.KeygenResult
-	(*InitSigningRequest)(nil),       // 16: mpcnode.InitSigningRequest
-	(*InitSigningResponse)(nil),      // 17: mpcnode.InitSigningResponse
-	(*SigningMessage)(nil),           // 18: mpcnode.SigningMessage
-	(*SigningMessageResponse)(nil),   // 19: mpcnode.SigningMessageResponse
-	(*GetSigningResultRequest)(nil),  // 20: mpcnode.GetSigningResultRequest
-	(*GetSigningResultResponse)(nil), // 21: mpcnode.GetSigningResultResponse
-	(*SigningResult)(nil),            // 22: mpcnode.SigningResult
-	(*MPCStreamMessage)(nil),         // 23: mpcnode.MPCStreamMessage
-	(*KeygenStreamPayload)(nil),      // 24: mpcnode.KeygenStreamPayload
-	(*SigningStreamPayload)(nil),     // 25: mpcnode.SigningStreamPayload
-	(*ControlMessage)(nil),           // 26: mpcnode.ControlMessage
-	(*SignedKeygenResponse)(nil),     // 27: mpcnode.SignedKeygenResponse
-	(*SignedSigningResponse)(nil),    // 28: mpcnode.SignedSigningResponse
-	(*PeerInfoRequest)(nil),          // 29: mpcnode.PeerInfoRequest
-	(*PeerInfoResponse)(nil),         // 30: mpcnode.PeerInfoResponse
-	(*PeerRecord)(nil),               // 31: mpcnode.PeerRecord
-	(*PingRequest)(nil),              // 32: mpcnode.PingRequest
-	(*PingResponse)(nil),             // 33: mpcnode.PingResponse
-	(*SessionInitRequest)(nil),       // 34: mpcnode.SessionInitRequest
-	(*SessionInitResponse)(nil),      // 35: mpcnode.SessionInitResponse
-	(*SessionStartCommand)(nil),      // 36: mpcnode.SessionStartCommand
-	(*SessionParticipant)(nil),       // 37: mpcnode.SessionParticipant
+	(SessionType)(0),                 // 1: mpcnode.SessionType
+	(*SignedEnvelope)(nil),           // 2: mpcnode.SignedEnvelope
+	(*HealthCheckRequest)(nil),       // 3: mpcnode.HealthCheckRequest
+	(*HealthCheckResponse)(nil),      // 4: mpcnode.HealthCheckResponse
+	(*GetNodeInfoRequest)(nil),       // 5: mpcnode.GetNodeInfoRequest
+	(*GetNodeInfoResponse)(nil),      // 6: mpcnode.GetNodeInfoResponse
+	(*InitKeygenRequest)(nil),        // 7: mpcnode.InitKeygenRequest
+	(*PartyInfo)(nil),                // 8: mpcnode.PartyInfo
+	(*InitKeygenResponse)(nil),       // 9: mpcnode.InitKeygenResponse
+	(*KeygenMessage)(nil),            // 10: mpcnode.KeygenMessage
+	(*KeygenMessageResponse)(nil),    // 11: mpcnode.KeygenMessageResponse
+	(*GetKeygenResultRequest)(nil),   // 12: mpcnode.GetKeygenResultRequest
+	(*GetKeygenResultResponse)(nil),  // 13: mpcnode.GetKeygenResultResponse
+	(*KeygenResult)(nil),             // 14: mpcnode.KeygenResult
+	(*InitSigningRequest)(nil),       // 15: mpcnode.InitSigningRequest
+	(*InitSigningResponse)(nil),      // 16: mpcnode.InitSigningResponse
+	(*SigningMessage)(nil),           // 17: mpcnode.SigningMessage
+	(*SigningMessageResponse)(nil),   // 18: mpcnode.SigningMessageResponse
+	(*GetSigningResultRequest)(nil),  // 19: mpcnode.GetSigningResultRequest
+	(*GetSigningResultResponse)(nil), // 20: mpcnode.GetSigningResultResponse
+	(*SigningResult)(nil),            // 21: mpcnode.SigningResult
+	(*SignedKeygenResponse)(nil),     // 22: mpcnode.SignedKeygenResponse
+	(*SignedSigningResponse)(nil),    // 23: mpcnode.SignedSigningResponse
+	(*PeerInfoRequest)(nil),          // 24: mpcnode.PeerInfoRequest
+	(*PeerInfoResponse)(nil),         // 25: mpcnode.PeerInfoResponse
+	(*PeerRecord)(nil),               // 26: mpcnode.PeerRecord
+	(*PingRequest)(nil),              // 27: mpcnode.PingRequest
+	(*PingResponse)(nil),             // 28: mpcnode.PingResponse
+	(*SessionInitRequest)(nil),       // 29: mpcnode.SessionInitRequest
+	(*SessionInitResponse)(nil),      // 30: mpcnode.SessionInitResponse
+	(*SessionStartCommand)(nil),      // 31: mpcnode.SessionStartCommand
+	(*SessionParticipant)(nil),       // 32: mpcnode.SessionParticipant
 }
 var file_proto_node_proto_depIdxs = []int32{
 	0,  // 0: mpcnode.GetNodeInfoResponse.status:type_name -> mpcnode.NodeStatus
-	9,  // 1: mpcnode.InitKeygenRequest.parties:type_name -> mpcnode.PartyInfo
-	11, // 2: mpcnode.KeygenMessageResponse.outgoing_messages:type_name -> mpcnode.KeygenMessage
-	15, // 3: mpcnode.GetKeygenResultResponse.result:type_name -> mpcnode.KeygenResult
-	11, // 4: mpcnode.GetKeygenResultResponse.outgoing_messages:type_name -> mpcnode.KeygenMessage
-	9,  // 5: mpcnode.InitSigningRequest.parties:type_name -> mpcnode.PartyInfo
-	18, // 6: mpcnode.SigningMessageResponse.outgoing_messages:type_name -> mpcnode.SigningMessage
-	22, // 7: mpcnode.GetSigningResultResponse.result:type_name -> mpcnode.SigningResult
-	18, // 8: mpcnode.GetSigningResultResponse.outgoing_messages:type_name -> mpcnode.SigningMessage
-	24, // 9: mpcnode.MPCStreamMessage.keygen:type_name -> mpcnode.KeygenStreamPayload
-	25, // 10: mpcnode.MPCStreamMessage.signing:type_name -> mpcnode.SigningStreamPayload
-	26, // 11: mpcnode.MPCStreamMessage.control:type_name -> mpcnode.ControlMessage
-	1,  // 12: mpcnode.ControlMessage.type:type_name -> mpcnode.ControlType
-	3,  // 13: mpcnode.SignedKeygenResponse.outgoing_messages:type_name -> mpcnode.SignedEnvelope
-	3,  // 14: mpcnode.SignedSigningResponse.outgoing_messages:type_name -> mpcnode.SignedEnvelope
-	31, // 15: mpcnode.PeerInfoResponse.known_peers:type_name -> mpcnode.PeerRecord
-	2,  // 16: mpcnode.SessionInitRequest.session_type:type_name -> mpcnode.SessionType
-	37, // 17: mpcnode.SessionStartCommand.participants:type_name -> mpcnode.SessionParticipant
-	4,  // 18: mpcnode.MPCNodeService.HealthCheck:input_type -> mpcnode.HealthCheckRequest
-	6,  // 19: mpcnode.MPCNodeService.GetNodeInfo:input_type -> mpcnode.GetNodeInfoRequest
-	8,  // 20: mpcnode.MPCNodeService.InitKeygen:input_type -> mpcnode.InitKeygenRequest
-	11, // 21: mpcnode.MPCNodeService.ProcessKeygenMessage:input_type -> mpcnode.KeygenMessage
-	13, // 22: mpcnode.MPCNodeService.GetKeygenResult:input_type -> mpcnode.GetKeygenResultRequest
-	16, // 23: mpcnode.MPCNodeService.InitSigning:input_type -> mpcnode.InitSigningRequest
-	18, // 24: mpcnode.MPCNodeService.ProcessSigningMessage:input_type -> mpcnode.SigningMessage
-	20, // 25: mpcnode.MPCNodeService.GetSigningResult:input_type -> mpcnode.GetSigningResultRequest
-	23, // 26: mpcnode.MPCNodeService.MPCMessageStream:input_type -> mpcnode.MPCStreamMessage
-	3,  // 27: mpcnode.MPCNodeService.ProcessSignedKeygenMessage:input_type -> mpcnode.SignedEnvelope
-	3,  // 28: mpcnode.MPCNodeService.ProcessSignedSigningMessage:input_type -> mpcnode.SignedEnvelope
-	29, // 29: mpcnode.MPCNodeService.ExchangePeerInfo:input_type -> mpcnode.PeerInfoRequest
-	32, // 30: mpcnode.MPCNodeService.Ping:input_type -> mpcnode.PingRequest
-	5,  // 31: mpcnode.MPCNodeService.HealthCheck:output_type -> mpcnode.HealthCheckResponse
-	7,  // 32: mpcnode.MPCNodeService.GetNodeInfo:output_type -> mpcnode.GetNodeInfoResponse
-	10, // 33: mpcnode.MPCNodeService.InitKeygen:output_type -> mpcnode.InitKeygenResponse
-	12, // 34: mpcnode.MPCNodeService.ProcessKeygenMessage:output_type -> mpcnode.KeygenMessageResponse
-	14, // 35: mpcnode.MPCNodeService.GetKeygenResult:output_type -> mpcnode.GetKeygenResultResponse
-	17, // 36: mpcnode.MPCNodeService.InitSigning:output_type -> mpcnode.InitSigningResponse
-	19, // 37: mpcnode.MPCNodeService.ProcessSigningMessage:output_type -> mpcnode.SigningMessageResponse
-	21, // 38: mpcnode.MPCNodeService.GetSigningResult:output_type -> mpcnode.GetSigningResultResponse
-	23, // 39: mpcnode.MPCNodeService.MPCMessageStream:output_type -> mpcnode.MPCStreamMessage
-	27, // 40: mpcnode.MPCNodeService.ProcessSignedKeygenMessage:output_type -> mpcnode.SignedKeygenResponse
-	28, // 41: mpcnode.MPCNodeService.ProcessSignedSigningMessage:output_type -> mpcnode.SignedSigningResponse
-	30, // 42: mpcnode.MPCNodeService.ExchangePeerInfo:output_type -> mpcnode.PeerInfoResponse
-	33, // 43: mpcnode.MPCNodeService.Ping:output_type -> mpcnode.PingResponse
-	31, // [31:44] is the sub-list for method output_type
-	18, // [18:31] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	8,  // 1: mpcnode.InitKeygenRequest.parties:type_name -> mpcnode.PartyInfo
+	10, // 2: mpcnode.KeygenMessageResponse.outgoing_messages:type_name -> mpcnode.KeygenMessage
+	14, // 3: mpcnode.GetKeygenResultResponse.result:type_name -> mpcnode.KeygenResult
+	10, // 4: mpcnode.GetKeygenResultResponse.outgoing_messages:type_name -> mpcnode.KeygenMessage
+	8,  // 5: mpcnode.InitSigningRequest.parties:type_name -> mpcnode.PartyInfo
+	17, // 6: mpcnode.SigningMessageResponse.outgoing_messages:type_name -> mpcnode.SigningMessage
+	21, // 7: mpcnode.GetSigningResultResponse.result:type_name -> mpcnode.SigningResult
+	17, // 8: mpcnode.GetSigningResultResponse.outgoing_messages:type_name -> mpcnode.SigningMessage
+	2,  // 9: mpcnode.SignedKeygenResponse.outgoing_messages:type_name -> mpcnode.SignedEnvelope
+	2,  // 10: mpcnode.SignedSigningResponse.outgoing_messages:type_name -> mpcnode.SignedEnvelope
+	26, // 11: mpcnode.PeerInfoResponse.known_peers:type_name -> mpcnode.PeerRecord
+	1,  // 12: mpcnode.SessionInitRequest.session_type:type_name -> mpcnode.SessionType
+	32, // 13: mpcnode.SessionStartCommand.participants:type_name -> mpcnode.SessionParticipant
+	3,  // 14: mpcnode.MPCNodeService.HealthCheck:input_type -> mpcnode.HealthCheckRequest
+	5,  // 15: mpcnode.MPCNodeService.GetNodeInfo:input_type -> mpcnode.GetNodeInfoRequest
+	7,  // 16: mpcnode.MPCNodeService.InitKeygen:input_type -> mpcnode.InitKeygenRequest
+	10, // 17: mpcnode.MPCNodeService.ProcessKeygenMessage:input_type -> mpcnode.KeygenMessage
+	12, // 18: mpcnode.MPCNodeService.GetKeygenResult:input_type -> mpcnode.GetKeygenResultRequest
+	15, // 19: mpcnode.MPCNodeService.InitSigning:input_type -> mpcnode.InitSigningRequest
+	17, // 20: mpcnode.MPCNodeService.ProcessSigningMessage:input_type -> mpcnode.SigningMessage
+	19, // 21: mpcnode.MPCNodeService.GetSigningResult:input_type -> mpcnode.GetSigningResultRequest
+	2,  // 22: mpcnode.MPCNodeService.ProcessSignedKeygenMessage:input_type -> mpcnode.SignedEnvelope
+	2,  // 23: mpcnode.MPCNodeService.ProcessSignedSigningMessage:input_type -> mpcnode.SignedEnvelope
+	24, // 24: mpcnode.MPCNodeService.ExchangePeerInfo:input_type -> mpcnode.PeerInfoRequest
+	27, // 25: mpcnode.MPCNodeService.Ping:input_type -> mpcnode.PingRequest
+	4,  // 26: mpcnode.MPCNodeService.HealthCheck:output_type -> mpcnode.HealthCheckResponse
+	6,  // 27: mpcnode.MPCNodeService.GetNodeInfo:output_type -> mpcnode.GetNodeInfoResponse
+	9,  // 28: mpcnode.MPCNodeService.InitKeygen:output_type -> mpcnode.InitKeygenResponse
+	11, // 29: mpcnode.MPCNodeService.ProcessKeygenMessage:output_type -> mpcnode.KeygenMessageResponse
+	13, // 30: mpcnode.MPCNodeService.GetKeygenResult:output_type -> mpcnode.GetKeygenResultResponse
+	16, // 31: mpcnode.MPCNodeService.InitSigning:output_type -> mpcnode.InitSigningResponse
+	18, // 32: mpcnode.MPCNodeService.ProcessSigningMessage:output_type -> mpcnode.SigningMessageResponse
+	20, // 33: mpcnode.MPCNodeService.GetSigningResult:output_type -> mpcnode.GetSigningResultResponse
+	22, // 34: mpcnode.MPCNodeService.ProcessSignedKeygenMessage:output_type -> mpcnode.SignedKeygenResponse
+	23, // 35: mpcnode.MPCNodeService.ProcessSignedSigningMessage:output_type -> mpcnode.SignedSigningResponse
+	25, // 36: mpcnode.MPCNodeService.ExchangePeerInfo:output_type -> mpcnode.PeerInfoResponse
+	28, // 37: mpcnode.MPCNodeService.Ping:output_type -> mpcnode.PingResponse
+	26, // [26:38] is the sub-list for method output_type
+	14, // [14:26] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_proto_node_proto_init() }
@@ -2930,18 +2541,13 @@ func file_proto_node_proto_init() {
 	if File_proto_node_proto != nil {
 		return
 	}
-	file_proto_node_proto_msgTypes[20].OneofWrappers = []any{
-		(*MPCStreamMessage_Keygen)(nil),
-		(*MPCStreamMessage_Signing)(nil),
-		(*MPCStreamMessage_Control)(nil),
-	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_node_proto_rawDesc), len(file_proto_node_proto_rawDesc)),
-			NumEnums:      3,
-			NumMessages:   35,
+			NumEnums:      2,
+			NumMessages:   31,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

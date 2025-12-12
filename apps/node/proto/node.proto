@@ -52,13 +52,6 @@ service MPCNodeService {
   rpc GetSigningResult(GetSigningResultRequest) returns (GetSigningResultResponse);
 
   // ============================================
-  // Потоковое взаимодействие
-  // ============================================
-
-  // Двунаправленный поток для обмена MPC сообщениями
-  rpc MPCMessageStream(stream MPCStreamMessage) returns (stream MPCStreamMessage);
-
-  // ============================================
   // Защищённые операции (P2P с подписями)
   // ============================================
 
@@ -224,47 +217,6 @@ message SigningResult {
   string r = 2;
   string s = 3;
   int32 v = 4; // recovery id
-}
-
-// ============================================
-// Потоковые сообщения
-// ============================================
-
-message MPCStreamMessage {
-  string session_id = 1;
-  string from_party = 2;
-  repeated string to_parties = 3;
-
-  oneof message_type {
-    KeygenStreamPayload keygen = 4;
-    SigningStreamPayload signing = 5;
-    ControlMessage control = 6;
-  }
-}
-
-message KeygenStreamPayload {
-  int32 round = 1;
-  bytes data = 2;
-  bool is_broadcast = 3;
-}
-
-message SigningStreamPayload {
-  int32 round = 1;
-  bytes data = 2;
-  bool is_broadcast = 3;
-}
-
-message ControlMessage {
-  ControlType type = 1;
-  string payload = 2;
-}
-
-enum ControlType {
-  CONTROL_TYPE_UNSPECIFIED = 0;
-  CONTROL_TYPE_SESSION_START = 1;
-  CONTROL_TYPE_SESSION_END = 2;
-  CONTROL_TYPE_ERROR = 3;
-  CONTROL_TYPE_HEARTBEAT = 4;
 }
 
 // ============================================

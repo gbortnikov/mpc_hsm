@@ -11,14 +11,8 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 echo -e "${GREEN}=== MPC Node Cluster Startup ===${NC}\n"
-
-# Проверка что бинарник собран
-if [ ! -f "./mpc_node" ]; then
-    echo -e "${YELLOW}Binary not found, building...${NC}"
-    go build -o mpc_node .
-    echo -e "${GREEN}Build complete${NC}\n"
-fi
-
+# создание бинарника
+go build -o mpc_node .
 # Создание директорий для ключей
 mkdir -p keys/node1 keys/node2 keys/node3
 mkdir -p logs
