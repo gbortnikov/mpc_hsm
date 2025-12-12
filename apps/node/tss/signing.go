@@ -33,6 +33,7 @@ type SigningSession struct {
 	// Буфер исходящих сообщений
 	outgoingBuffer []OutgoingMessage
 	bufferMu       sync.Mutex
+	msgNotify      chan struct{} // уведомление о новых сообщениях
 }
 
 // SigningResult представляет результат подписания
@@ -65,6 +66,7 @@ func NewSigningSession(sessionID string, keyData *keygen.LocalPartySaveData, mes
 		OutCh:         make(chan tss.Message, 100),
 		EndCh:         make(chan *common.SignatureData, 1),
 		ErrCh:         make(chan *tss.Error, 1),
+		msgNotify:     make(chan struct{}, 1), // буферизованный канал для уведомлений
 	}, nil
 }
 
@@ -294,6 +296,12 @@ func (ss *SigningSession) bufferOutgoingMessages() {
 			ss.outgoingBuffer = append(ss.outgoingBuffer, outMsg)
 			ss.bufferMu.Unlock()
 
+			// Уведомляем о новом сообщении (неблокирующе)
+			select {
+			case ss.msgNotify <- struct{}{}:
+			default:
+			}
+
 		default:
 			// Проверка завершения сессии
 			ss.mu.RLock()
@@ -322,7 +330,36 @@ func (ss *SigningSession) GetOutgoingMessages() []OutgoingMessage {
 func (ss *SigningSession) collectOutgoingMessages() []OutgoingMessage {
 	// Ожидание буферизации сообщений после UpdateFromBytes
 	// TSS-библиотека генерирует сообщения асинхронно
-	time.Sleep(500 * time.Millisecond)
+	// Используем умное ожидание: ждём уведомления или короткий таймаут
+	const (
+		maxWait      = 50 * time.Millisecond // максимальное время ожидания
+		settleTime   = 10 * time.Millisecond // время на "устаканивание" после получения сообщения
+		pollInterval = 5 * time.Millisecond  // интервал проверки буфера
+	)
+
+	deadline := time.Now().Add(maxWait)
+
+	// Ждём первое сообщение или таймаут
+	select {
+	case <-ss.msgNotify:
+		// Получили уведомление, даём время на буферизацию остальных сообщений
+		time.Sleep(settleTime)
+	case <-time.After(maxWait):
+		// Таймаут — возможно сообщений нет
+	}
+
+	// Дополнительно проверяем, есть ли ещё сообщения
+	for time.Now().Before(deadline) {
+		ss.bufferMu.Lock()
+		hasMessages := len(ss.outgoingBuffer) > 0
+		ss.bufferMu.Unlock()
+
+		if hasMessages {
+			break
+		}
+		time.Sleep(pollInterval)
+	}
+
 	messages := ss.GetOutgoingMessages()
 	slog.Debug("SigningSession.collectOutgoingMessages: collected messages",
 		"session_id", ss.SessionID,

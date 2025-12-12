@@ -34,6 +34,7 @@ type KeygenSession struct {
 	// Буфер исходящих сообщений
 	outgoingBuffer []OutgoingMessage
 	bufferMu       sync.Mutex
+	msgNotify      chan struct{} // уведомление о новых сообщениях
 
 	// Признак сохранения в БД
 	saved bool
@@ -62,6 +63,7 @@ func NewKeygenSession(sessionID string, partyIndex int, threshold, totalParties 
 		OutCh:        make(chan tss.Message, totalParties*10),
 		EndCh:        make(chan *keygen.LocalPartySaveData, 1),
 		ErrCh:        make(chan *tss.Error, 1),
+		msgNotify:    make(chan struct{}, 1), // буферизованный канал для уведомлений
 	}, nil
 }
 
@@ -249,6 +251,12 @@ func (ks *KeygenSession) bufferOutgoingMessages() {
 			ks.outgoingBuffer = append(ks.outgoingBuffer, outMsg)
 			ks.bufferMu.Unlock()
 
+			// Уведомляем о новом сообщении (неблокирующе)
+			select {
+			case ks.msgNotify <- struct{}{}:
+			default:
+			}
+
 		default:
 			// Проверка завершения сессии
 			ks.mu.RLock()
@@ -277,7 +285,36 @@ func (ks *KeygenSession) GetOutgoingMessages() []OutgoingMessage {
 func (ks *KeygenSession) collectOutgoingMessages() []OutgoingMessage {
 	// Ожидание буферизации сообщений после UpdateFromBytes
 	// TSS-библиотека генерирует сообщения асинхронно
-	time.Sleep(500 * time.Millisecond)
+	// Используем умное ожидание: ждём уведомления или короткий таймаут
+	const (
+		maxWait      = 50 * time.Millisecond // максимальное время ожидания
+		settleTime   = 10 * time.Millisecond // время на "устаканивание" после получения сообщения
+		pollInterval = 5 * time.Millisecond  // интервал проверки буфера
+	)
+
+	deadline := time.Now().Add(maxWait)
+
+	// Ждём первое сообщение или таймаут
+	select {
+	case <-ks.msgNotify:
+		// Получили уведомление, даём время на буферизацию остальных сообщений
+		time.Sleep(settleTime)
+	case <-time.After(maxWait):
+		// Таймаут — возможно сообщений нет
+	}
+
+	// Дополнительно проверяем, есть ли ещё сообщения
+	for time.Now().Before(deadline) {
+		ks.bufferMu.Lock()
+		hasMessages := len(ks.outgoingBuffer) > 0
+		ks.bufferMu.Unlock()
+
+		if hasMessages {
+			break
+		}
+		time.Sleep(pollInterval)
+	}
+
 	messages := ks.GetOutgoingMessages()
 	slog.Debug("collectOutgoingMessages: collected messages",
 		"session_id", ks.SessionID,
